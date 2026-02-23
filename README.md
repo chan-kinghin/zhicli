@@ -2,7 +2,7 @@
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Tests: passing](https://img.shields.io/badge/tests-309%20passing-brightgreen)
+![Tests: passing](https://img.shields.io/badge/tests-333%20passing-brightgreen)
 
 > 一个开源的 Python 命令行工具，由智谱 GLM 大模型驱动。安装即用，让 AI 在终端中帮你处理文件、识别图片、执行任务。
 
@@ -114,11 +114,11 @@ zhi run summarize 产品评审会议记录.txt
 # → 输出结构化摘要到 zhi-output/
 ```
 
-### 代码审查
+### 对比文档差异
 
 ```bash
-zhi -c "审查 src/api/handler.py，重点关注错误处理和安全问题"
-# → 输出问题列表，标注行号和修改建议
+zhi run compare 合同-v1.md 合同-v2.md
+# → 高亮两个版本之间的修改内容，输出对比报告
 ```
 
 ### OCR 识别图片/PDF
@@ -128,11 +128,11 @@ zhi -c "识别 合同扫描件.pdf 中的文字，保存为文本文件"
 # → 支持 PDF、PNG、JPG、GIF、WEBP，最大 20MB
 ```
 
-### 生成测试数据
+### 从报表提取关键数据
 
 ```bash
-zhi -c "生成 50 条用户测试数据（姓名、手机号、城市），保存为 CSV"
-# → 输出格式正确的测试数据文件
+zhi -c "读取 季度财务报表.pdf，提取关键财务指标，整理成表格保存"
+# → OCR 识别 PDF 内容，提取收入、利润等关键数据
 ```
 
 ### 翻译文档
