@@ -1,0 +1,83 @@
+site_name: zhi CLI
+site_url: https://chan-kinghin.github.io/zhicli/
+site_description: Terminal AI assistant powered by Zhipu GLM models
+repo_url: https://github.com/chan-kinghin/zhicli
+repo_name: chan-kinghin/zhicli
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.top
+    - search.suggest
+    - search.highlight
+    - content.code.copy
+    - content.tabs.link
+  icon:
+    repo: fontawesome/brands/github
+
+nav:
+  - Home: index.md
+  - Tutorials: en/tutorials.md
+  - Use Cases: en/use-cases.md
+  - Comparison: en/comparison.md
+  - Architecture: en/architecture.md
+  - Reference:
+    - Skills: en/reference/skills.md
+    - Tools: en/reference/tools.md
+    - CLI: en/reference/cli.md
+    - Configuration: en/reference/config.md
+  - 中文:
+    - 首页: zh/index.md
+    - 教程: zh/tutorials.md
+    - 使用场景: zh/use-cases.md
+    - 对比: zh/comparison.md
+    - 架构: zh/architecture.md
+    - 参考:
+      - 技能: zh/reference/skills.md
+      - 工具: zh/reference/tools.md
+      - 命令行: zh/reference/cli.md
+      - 配置: zh/reference/config.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - tables
+  - attr_list
+  - md_in_html
+  - toc:
+      permalink: true
+
+plugins:
+  - search
+
+extra:
+  alternate:
+    - name: English
+      link: /zhicli/
+      lang: en
+    - name: 中文
+      link: /zhicli/zh/
+      lang: zh

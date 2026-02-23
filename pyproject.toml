@@ -37,6 +37,7 @@ packages = ["src/zhi"]
 Homepage = "https://github.com/chan-kinghin/zhicli"
 Repository = "https://github.com/chan-kinghin/zhicli"
 Issues = "https://github.com/chan-kinghin/zhicli/issues"
+Documentation = "https://chan-kinghin.github.io/zhicli/"
 
 [project.optional-dependencies]
 excel = ["openpyxl>=3.1"]

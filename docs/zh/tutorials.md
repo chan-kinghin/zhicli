@@ -4,32 +4,19 @@
 
 ---
 
-## 目录
-
-1. [快速入门](#1-快速入门教程)
-2. [交互式对话](#2-交互式对话教程)
-3. [文件处理](#3-文件处理教程)
-4. [技能系统](#4-技能系统教程)
-5. [Shell 命令](#5-shell-命令教程)
-6. [Web 内容获取](#6-web-内容获取教程)
-
 ---
 
-## 1. 快速入门教程
-
-### 目标
+## 5 分钟快速入门
 
 从零开始安装 zhi，配置 API 密钥，完成第一次对话。
 
 ### 前提条件
 
-- Python 3.11 或更高版本
+- Python 3.10 或更高版本
 - pip 包管理器
 - 智谱开放平台账号（用于获取 API 密钥）
 
-### 具体步骤
-
-#### 第一步：安装 zhi
+### 第一步：安装 zhi
 
 ```bash
 pip install zhicli
@@ -47,22 +34,9 @@ pip install "zhicli[all]"
 zhi --version
 ```
 
-输出示例：
+### 第二步：配置
 
-```
-zhi 0.1.0
-```
-
-#### 第二步：获取 API 密钥
-
-1. 访问智谱开放平台：https://open.bigmodel.cn
-2. 注册账号并登录
-3. 在控制台中创建 API 密钥
-4. 复制密钥备用
-
-#### 第三步：配置 API 密钥
-
-**方式一：运行设置向导（推荐）**
+运行设置向导（推荐）：
 
 ```bash
 zhi --setup
@@ -90,7 +64,7 @@ Step 3/3: Quick Demo
 Setup complete. Type /help to see available commands.
 ```
 
-**方式二：通过环境变量配置**
+也可以通过环境变量配置：
 
 ```bash
 # Linux / macOS
@@ -100,56 +74,33 @@ export ZHI_API_KEY="你的API密钥"
 $env:ZHI_API_KEY = "你的API密钥"
 ```
 
-#### 第四步：开始第一次对话
+### 第三步：开始使用
 
-直接运行 `zhi` 进入交互模式：
+**交互模式** -- 启动 REPL：
 
 ```bash
 zhi
 ```
 
-输出：
-
-```
-Welcome to zhi. Type /help for commands.
-You [approve]:
-```
-
-输入你的第一个问题：
-
-```
-You [approve]: 你好，请用一句话介绍你自己
-```
-
-zhi 会通过 GLM-5 模型生成回答并在终端中流式输出。
-
-#### 快速单次对话
-
-如果不想进入交互模式，可以使用 `-c` 参数：
+**单次提问** -- 问一个问题后退出：
 
 ```bash
 zhi -c "什么是机器学习？"
 ```
 
-执行后直接输出回答，然后退出。
+**运行技能** -- 用内置技能处理文件：
 
-### 注意事项
+```bash
+zhi run summarize document.txt
+```
 
-- API 密钥会保存在系统配置目录中（macOS: `~/Library/Application Support/zhi/config.yaml`，Linux: `~/.config/zhi/config.yaml`，Windows: `%APPDATA%\zhi\config.yaml`），文件权限设置为仅所有者可读写
-- 环境变量 `ZHI_API_KEY` 的优先级高于配置文件
-- 如果需要重新配置，随时运行 `zhi --setup`
+完成！你已经可以开始使用了。
 
 ---
 
-## 2. 交互式对话教程
+## 交互式对话教程
 
-### 目标
-
-掌握 REPL 交互模式的核心功能：斜杠命令、权限模式切换、模型切换、多行输入等。
-
-### 具体步骤
-
-#### 进入交互模式
+### 进入交互模式
 
 ```bash
 zhi
@@ -162,7 +113,7 @@ You [approve]:
 
 提示符中的 `[approve]` 表示当前的权限模式。
 
-#### 查看帮助
+### 查看帮助
 
 ```
 You [approve]: /help
@@ -187,7 +138,7 @@ Available commands:
   /exit              Exit zhi
 ```
 
-#### 权限模式切换
+### 权限模式切换
 
 zhi 有两种权限模式：
 
@@ -202,7 +153,10 @@ You [auto]: /approve
 Mode switched to approve
 ```
 
-#### 切换模型
+!!! warning
+    Shell 命令始终需要确认，即使在 auto 模式下也不例外。这是一项不可绕过的安全特性。
+
+### 切换模型
 
 zhi 支持三个模型：
 
@@ -212,21 +166,17 @@ zhi 支持三个模型：
 | `glm-4-flash` | 经济 | 技能执行模型，快速且便宜 |
 | `glm-4-air` | 经济 | 轻量替代方案 |
 
-查看当前模型：
+查看和切换模型：
 
 ```
 You [approve]: /model
 Current model: glm-5. Available: glm-5, glm-4-flash, glm-4-air
-```
 
-切换模型：
-
-```
 You [approve]: /model glm-4-flash
 Model switched to glm-4-flash
 ```
 
-#### 思考模式
+### 思考模式
 
 启用思考模式后，模型会展示推理过程（仅 glm-5 支持）：
 
@@ -240,7 +190,7 @@ You [approve]: /fast
 Thinking mode disabled
 ```
 
-#### 多行输入
+### 多行输入
 
 在行末添加 `\` 可以输入多行内容：
 
@@ -250,7 +200,7 @@ You [approve]: 请帮我写一个 Python 函数，\
 ...  返回列表中的最大值
 ```
 
-#### 管理对话历史
+### 管理对话历史
 
 撤销上一轮对话：
 
@@ -266,7 +216,7 @@ You [approve]: /reset
 Conversation cleared
 ```
 
-#### 查看用量统计
+### 查看用量统计
 
 ```
 You [approve]: /usage
@@ -274,7 +224,7 @@ You [approve]: /usage
 
 会显示当前会话的 token 用量和预估费用。
 
-#### 退出
+### 退出
 
 ```
 You [approve]: /exit
@@ -283,24 +233,17 @@ Goodbye!
 
 也可以按 `Ctrl+D` 退出，或按 `Ctrl+C` 取消当前输入。
 
-### 注意事项
-
-- 输入历史会自动保存，下次启动可以用上下方向键浏览历史记录
-- 包含敏感信息（如 api_key、password、token）的输入不会被保存到历史记录
-- Tab 键可以自动补全斜杠命令和模型名称
-- 切换模型只影响当前会话，不会修改配置文件
+!!! tip
+    - 输入历史会自动保存，下次启动可以用上下方向键浏览历史记录
+    - 包含敏感信息（如 api_key、password、token）的输入不会被保存到历史记录
+    - Tab 键可以自动补全斜杠命令和模型名称
+    - 切换模型只影响当前会话，不会修改配置文件
 
 ---
 
-## 3. 文件处理教程
+## 文件处理教程
 
-### 目标
-
-学会使用 zhi 读取文件、识别图片/PDF 中的文字、将结果写入新文件。
-
-### 具体步骤
-
-#### 读取文本文件
+### 读取文本文件
 
 在对话中让 zhi 读取文件：
 
@@ -311,12 +254,13 @@ You [approve]: 请读取 README.md 文件并总结其内容
 zhi 会调用 `file_read` 工具读取文件内容，然后生成总结。
 
 `file_read` 工具的特点：
+
 - 只允许读取当前工作目录内的文件（相对路径）
 - 单个文件最大 100KB，超出部分会被截断
 - 自动检测编码，优先使用 UTF-8
 - 不能读取二进制文件
 
-#### 列出目录内容
+### 列出目录内容
 
 ```
 You [approve]: 列出当前目录下的所有文件
@@ -324,24 +268,23 @@ You [approve]: 列出当前目录下的所有文件
 
 zhi 会调用 `file_list` 工具展示文件列表，包含文件名、大小和修改时间。
 
-#### OCR 识别图片和 PDF
+### OCR 识别图片和 PDF
 
 将图片或 PDF 中的文字提取出来：
 
 ```
 You [approve]: 请识别 invoice.png 中的文字内容
-```
 
-```
 You [approve]: 提取 report.pdf 中的文字并总结要点
 ```
 
 `ocr` 工具支持的格式：
+
 - 图片：PNG, JPG, JPEG, GIF, WEBP
 - 文档：PDF
 - 文件大小限制：20MB
 
-#### 写入新文件
+### 写入新文件
 
 zhi 的所有文件输出都保存在 `zhi-output/` 目录中：
 
@@ -372,7 +315,7 @@ You [approve]: 帮我创建一个 CSV 文件，包含以下三个人的信息：
 
 zhi 会在 `zhi-output/` 下创建 CSV 文件。
 
-#### 组合使用：读取 + 处理 + 写入
+### 组合使用：读取 + 处理 + 写入
 
 ```
 You [approve]: 读取 data.csv 文件，分析数据趋势，然后把分析报告写成 report.md
@@ -380,58 +323,73 @@ You [approve]: 读取 data.csv 文件，分析数据趋势，然后把分析报�
 
 zhi 会依次调用 file_read 读取数据、分析内容、然后调用 file_write 生成报告。
 
-### 注意事项
-
-- `file_write` 只能创建新文件，不能覆盖已有文件
-- 所有输出文件都在 `zhi-output/` 目录下，不会影响你的原始文件
-- 路径不允许包含 `..`，防止写入工作目录以外的位置
-- 如果需要 Excel 或 Word 支持，确保安装了对应的依赖：`pip install "zhicli[all]"`
-- 没有安装 openpyxl 时，Excel 请求会自动降级为 CSV；没有安装 python-docx 时，Word 请求会降级为 Markdown
+!!! info
+    - `file_write` 只能创建新文件，不能覆盖已有文件
+    - 所有输出文件都在 `zhi-output/` 目录下，不会影响你的原始文件
+    - 路径不允许包含 `..`，防止写入工作目录以外的位置
+    - 如果需要 Excel 或 Word 支持，确保安装了对应的依赖：`pip install "zhicli[all]"`
+    - 没有安装 openpyxl 时，Excel 请求会自动降级为 CSV；没有安装 python-docx 时，Word 请求会降级为 Markdown
 
 ---
 
-## 4. 技能系统教程
-
-### 目标
-
-学会使用内置技能、创建自定义技能、从命令行直接运行技能。
+## 技能系统教程
 
 ### 什么是技能？
 
 技能（Skill）是一组预定义的 YAML 配置，指定了系统提示词、可用工具和模型。它让你可以将常用的工作流程保存下来，一键运行。技能默认使用 `glm-4-flash` 模型，成本不到 GLM-5 的 10%。
 
-### 具体步骤
+### 内置技能
 
-#### 使用内置技能
+zhi 自带 **15 个内置技能** -- 9 个单一用途技能和 6 个组合技能（将多个单一技能串联成多步工作流）。
 
-zhi 自带两个内置技能：
+#### 单一用途技能（9 个）
 
-**summarize** - 文档总结
+| 技能 | 功能 | 用法 |
+|------|------|------|
+| `summarize` | 文档总结 | `zhi run summarize report.txt` |
+| `translate` | 翻译文档（默认翻译为中文） | `zhi run translate readme-en.md` |
+| `extract-text` | 从 PDF/图片中 OCR 提取文字 | `zhi run extract-text scan.pdf` |
+| `extract-table` | 从文档中提取表格数据 | `zhi run extract-table invoice.pdf` |
+| `analyze` | 深度分析文档结构与内容 | `zhi run analyze proposal.md` |
+| `proofread` | 语法、拼写、风格校对 | `zhi run proofread draft.md` |
+| `reformat` | 文档格式转换 | `zhi run reformat notes.txt` |
+| `meeting-notes` | 将原始笔记整理为会议纪要 | `zhi run meeting-notes notes.txt` |
+| `compare` | 对比两份文档并标注差异 | `zhi run compare v1.md v2.md` |
 
-```bash
-# 从命令行直接运行
-zhi run summarize report.txt
-```
+#### 组合技能（6 个）
 
-```
-# 在交互模式中运行
-You [approve]: /run summarize report.txt
-```
+这些技能将多个单一技能串联成多步工作流。详见下方[组合技能](#composite-skills)章节。
 
-**translate** - 翻译文本
+| 技能 | 流程 | 用法 |
+|------|------|------|
+| `contract-review` | 分析 + 对比 + 校对 | `zhi run contract-review contract.pdf` |
+| `daily-digest` | 目录扫描 + 批量总结 | `zhi run daily-digest ./reports/` |
+| `invoice-to-excel` | 表格提取 + 格式转换 | `zhi run invoice-to-excel invoices/` |
+| `meeting-followup` | 会议纪要 + 总结 + 翻译 | `zhi run meeting-followup notes.txt` |
+| `report-polish` | 校对 + 分析 + 格式优化 | `zhi run report-polish draft.md` |
+| `translate-proofread` | 翻译 + 校对 | `zhi run translate-proofread doc.md` |
 
-```bash
-# 翻译文件（默认翻译为中文）
-zhi run translate readme-en.md
-```
-
-#### 查看已安装的技能
+### 查看已安装的技能
 
 ```
 You [approve]: /skill list
 ```
 
-#### 创建自定义技能
+### 运行技能
+
+从命令行直接运行：
+
+```bash
+zhi run summarize report.txt
+```
+
+在交互模式中运行：
+
+```
+You [approve]: /run summarize report.txt
+```
+
+### 创建自定义技能
 
 **方式一：在对话中让 zhi 创建**
 
@@ -472,7 +430,7 @@ output:
   directory: zhi-output
 ```
 
-#### 技能 YAML 字段说明
+### 技能 YAML 字段说明
 
 | 字段 | 必填 | 说明 |
 |------|------|------|
@@ -485,7 +443,7 @@ output:
 | `input` | 否 | 输入参数定义 |
 | `output` | 否 | 输出配置（描述和目录） |
 
-#### 可用工具列表
+### 可用工具列表
 
 创建技能时可以选择以下工具：
 
@@ -499,48 +457,24 @@ output:
 | `web_fetch` | 获取网页内容 | 低 |
 | `skill_create` | 创建新技能 | 高 |
 
-#### 查看技能详情
+### 管理技能
 
 ```
-You [approve]: /skill show code-review
+You [approve]: /skill show code-review   # 查看技能详情
+You [approve]: /skill delete code-review # 删除自定义技能
 ```
 
-#### 运行自定义技能
-
-```bash
-# 命令行模式
-zhi run code-review main.py
-
-# 交互模式
-You [approve]: /run code-review main.py
-```
-
-#### 删除技能
-
-```
-You [approve]: /skill delete code-review
-```
-
-注意：只能删除用户创建的技能 YAML 文件，不会影响任何其他文件。
-
-### 注意事项
-
-- 技能名称必须匹配 `^[a-zA-Z0-9][a-zA-Z0-9_-]*$`，不允许包含空格或特殊字符
-- 技能使用 `glm-4-flash` 模型执行，成本远低于交互对话
-- 每个技能只能访问其 `tools` 列表中声明的工具
-- 技能的输出默认保存在 `zhi-output/` 目录
+!!! info
+    - 技能名称必须匹配 `^[a-zA-Z0-9][a-zA-Z0-9_-]*$`，不允许包含空格或特殊字符
+    - 每个技能只能访问其 `tools` 列表中声明的工具
+    - 技能的输出默认保存在 `zhi-output/` 目录
+    - 只能删除用户创建的技能 YAML 文件，内置技能受保护
 
 ---
 
-## 5. Shell 命令教程
+## Shell 命令教程
 
-### 目标
-
-学会通过 zhi 安全地执行 Shell 命令，理解权限确认机制和安全限制。
-
-### 具体步骤
-
-#### 基本用法
+### 基本用法
 
 在对话中要求 zhi 执行命令：
 
@@ -557,15 +491,13 @@ Allow? [y/n]:
 
 输入 `y` 允许执行，输入 `n` 拒绝。
 
-#### 安全机制
+### 三层安全保护
 
-Shell 工具有三层安全保护：
-
-**1. 始终需要确认**
+#### 1. 始终需要确认
 
 无论处于 approve 模式还是 auto 模式，Shell 命令都需要用户确认。这是 zhi 最重要的安全原则。
 
-**2. 危险命令额外警告**
+#### 2. 危险命令额外警告
 
 以下类型的命令会触发额外的破坏性警告：
 
@@ -576,7 +508,7 @@ Shell 工具有三层安全保护：
 - 文件就地修改：`sed -i`
 - Git 危险操作：`git reset --hard`, `git clean`
 
-**3. 灾难性命令直接阻止**
+#### 3. 灾难性命令直接阻止
 
 以下命令被永久禁止，无法执行：
 
@@ -586,19 +518,15 @@ Shell 工具有三层安全保护：
 - fork 炸弹等恶意命令
 - `dd if=/dev/zero of=/dev/...`
 
-#### 设置命令超时
+### 命令超时
 
 Shell 命令默认超时 30 秒，最长可设置为 300 秒（5 分钟）。超时后 zhi 会终止整个进程组，确保不会有遗留进程。
 
-```
-You [approve]: 运行一个耗时较长的命令，比如编译项目
-```
-
-#### 查看命令输出
+### 输出限制
 
 命令输出最大显示 100KB，超出部分会被截断并提示。
 
-#### 实用示例
+### 实用示例
 
 ```
 You [approve]: 查看系统的 Python 版本
@@ -608,25 +536,14 @@ You [approve]: 统计 src/ 目录下有多少行代码
 You [approve]: 运行 pytest 测试并告诉我结果
 ```
 
-### 注意事项
-
-- Shell 命令的确认机制不可跳过，即使在 auto 模式下也需要确认
-- 命令超时后会使用 `os.killpg` 杀死整个进程组，不会留下僵尸进程
-- 命令输出上限为 100KB
-- 跨平台支持：在 Windows 上使用 `CREATE_NEW_PROCESS_GROUP`，在 Unix 上使用 `start_new_session`
-- 永远不要让 AI 运行你不理解的命令，即使 zhi 会请求确认
+!!! warning
+    永远不要让 AI 运行你不理解的命令，即使 zhi 会请求确认。跨平台支持：在 Windows 上使用 `CREATE_NEW_PROCESS_GROUP`，在 Unix 上使用 `start_new_session`。
 
 ---
 
-## 6. Web 内容获取教程
+## Web 内容获取教程
 
-### 目标
-
-学会使用 zhi 获取网页内容并进行分析处理。
-
-### 具体步骤
-
-#### 获取网页内容
+### 获取网页内容
 
 ```
 You [approve]: 获取 https://example.com 的内容
@@ -634,7 +551,7 @@ You [approve]: 获取 https://example.com 的内容
 
 zhi 会调用 `web_fetch` 工具抓取页面内容，自动将 HTML 转换为纯文本。
 
-#### 分析网页内容
+### 分析网页内容
 
 ```
 You [approve]: 获取这个网页的内容并总结要点：https://example.com/article
@@ -642,7 +559,7 @@ You [approve]: 获取这个网页的内容并总结要点：https://example.com/
 
 zhi 会先获取内容，然后基于 GLM 模型进行分析。
 
-#### 获取并保存
+### 获取并保存
 
 ```
 You [approve]: 抓取 https://example.com/data 的内容，提取关键数据，保存为 CSV 文件
@@ -650,7 +567,7 @@ You [approve]: 抓取 https://example.com/data 的内容，提取关键数据，
 
 zhi 会组合使用 `web_fetch` 和 `file_write` 工具完成任务。
 
-#### 在技能中使用
+### 在技能中使用
 
 可以创建包含 `web_fetch` 的技能，自动化网页内容处理：
 
@@ -673,14 +590,113 @@ max_turns: 5
 zhi run web-summary
 ```
 
-### 注意事项
+!!! info
+    - URL 必须以 `http://` 或 `https://` 开头
+    - 请求超时时间为 30 秒
+    - 响应内容上限为 50KB，超出部分会被截断
+    - HTML 页面会自动去除标签，转换为纯文本
+    - `web_fetch` 会自动跟随重定向
+    - 内置 SSRF 防护
 
-- URL 必须以 `http://` 或 `https://` 开头
-- 请求超时时间为 30 秒
-- 响应内容上限为 50KB，超出部分会被截断
-- HTML 页面会自动去除标签，转换为纯文本
-- 如果页面无法提取到文本，会返回提示信息
-- `web_fetch` 会自动跟随重定向
+---
+
+## 组合技能 { #composite-skills }
+
+组合技能将多个单一技能串联成自动化的多步工作流。它们同样使用 `glm-4-flash` 模型，保持低成本。
+
+### contract-review（合同审查）
+
+**流程：** analyze + compare + proofread
+
+从三个角度审查合同文档：结构分析以识别关键条款和风险，可选的版本对比以标注变更内容，以及校对以发现模糊措辞。
+
+```bash
+# 审查单份合同
+zhi run contract-review contract.pdf
+
+# 对比两个版本
+zhi run contract-review contract-v2.pdf contract-v1.pdf
+```
+
+**输出：** 一份全面的审查报告，包含执行摘要、结构分析、版本变更（如适用）、语言问题、风险评估和谈判建议。
+
+### daily-digest（每日摘要）
+
+**流程：** file_list + summarize（批量）
+
+扫描文件夹中的所有文档，生成一份包含各文档摘要和跨文档洞察的综合摘要报告。
+
+```bash
+zhi run daily-digest ./inbox/
+```
+
+**输出：** 摘要报告列出每份文档的总结、共同主题、矛盾之处和建议的后续行动。
+
+!!! tip
+    支持的文件类型包括 `.txt`、`.md`、`.pdf`、`.csv`、`.docx`、`.xlsx`、`.png` 和 `.jpg`。二进制文件和系统文件会被自动跳过。
+
+### invoice-to-excel（发票转 Excel）
+
+**流程：** extract-table + reformat
+
+通过 OCR 表格提取处理发票文件（PDF、图片或文本），然后将所有明细项整合到结构化的 Excel 表格中。
+
+```bash
+# 单张发票
+zhi run invoice-to-excel invoice.pdf
+
+# 批量处理发票文件夹
+zhi run invoice-to-excel ./invoices/
+```
+
+**输出：** 一个 Excel 文件，包含两个工作表 -- "Line Items"（所有发票的逐行明细）和 "Invoice Summary"（每张发票的汇总）。日期统一为 YYYY-MM-DD 格式，货币符号已清理，总额已验证。
+
+### meeting-followup（会议跟进）
+
+**流程：** meeting-notes + summarize + translate
+
+接收原始会议笔记，生成完整的会后跟进材料包：结构化的会议纪要、供领导参阅的执行摘要，以及可选的翻译版本。
+
+```bash
+# 基本跟进
+zhi run meeting-followup raw-notes.txt
+
+# 附带翻译
+zhi run meeting-followup raw-notes.txt --to english
+```
+
+**输出：** 三个文件 -- 完整的会议纪要、1 页执行摘要，以及（可选的）翻译版摘要。待办事项同时出现在完整纪要和摘要中。
+
+### report-polish（报告润色）
+
+**流程：** proofread + analyze + reformat
+
+接收草稿文档，通过语言校对、结构分析和格式优化，输出可发布的终稿。
+
+```bash
+zhi run report-polish draft-report.md
+
+# 指定输出格式
+zhi run report-polish draft.md --format docx
+```
+
+**输出：** 两个文件 -- 润色后的文档和一份修改日志，包含修改前后的质量评分、所有修正内容、结构改进和剩余建议。
+
+### translate-proofread（翻译校对）
+
+**流程：** translate + proofread
+
+翻译文档后对译文进行校对，确保译文在目标语言中读起来自然流畅。
+
+```bash
+# 默认翻译为中文
+zhi run translate-proofread article-en.md
+
+# 指定目标语言
+zhi run translate-proofread article.md --to english
+```
+
+**输出：** 两个文件 -- 校对后的最终译文和一份质量报告，包含检测到的源语言、翻译质量评分、发现并修正的问题，以及可能需要人工审核的段落。
 
 ---
 
@@ -731,7 +747,13 @@ max_turns: 30
 log_level: "INFO"
 ```
 
-支持的环境变量覆盖：
+**配置文件位置：**
+
+- macOS: `~/Library/Application Support/zhi/config.yaml`
+- Linux: `~/.config/zhi/config.yaml`
+- Windows: `%APPDATA%\zhi\config.yaml`
+
+**支持的环境变量覆盖：**
 
 | 环境变量 | 对应配置项 |
 |----------|-----------|
@@ -739,6 +761,8 @@ log_level: "INFO"
 | `ZHI_DEFAULT_MODEL` | `default_model` |
 | `ZHI_OUTPUT_DIR` | `output_dir` |
 | `ZHI_LOG_LEVEL` | `log_level` |
+
+环境变量 `ZHI_API_KEY` 的优先级高于配置文件。
 
 ### 常见问题
 

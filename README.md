@@ -1,424 +1,295 @@
-# zhi — 终端里的 AI 助手
+# zhi - 终端 AI 助手 | Terminal AI Assistant
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Tests: passing](https://img.shields.io/badge/tests-354%20passing-brightgreen)
+![Tests: 354 passing](https://img.shields.io/badge/tests-354%20passing-brightgreen)
 
-> 一个开源的 Python 命令行工具，由智谱 GLM 大模型驱动。安装即用，让 AI 在终端中帮你处理文件、识别图片、执行任务。
+[English](#english) | [Documentation](https://chan-kinghin.github.io/zhicli/)
 
-## 为什么选择 zhi？ / Why zhi?
+---
 
-你不需要 ChatGPT 的月费来总结一个文档。你也不需要 OpenClaw 那样连接邮箱、日历、智能家居的全能助手。
+**由智谱 GLM 大模型驱动的智能终端助手**
 
-**zhi 只做一件事：让 AI 在你的终端里处理文件任务。**
-
-| | ChatGPT | OpenClaw | **zhi** |
-|---|---|---|---|
-| 安装方式 | 注册账号、打开浏览器 | Node ≥22 + 后台守护进程 + 消息平台授权 | **`pip install zhicli`** |
-| 上手时间 | 即时 | 10-30 分钟 | **2 分钟**（安装 + API 密钥） |
-| 读取本地文件 | 需手动上传 | 需配置权限 | **直接读取当前目录** |
-| 运行成本 | $20/月订阅 | 按 API 用量计费 | **按用量付费，技能执行成本 <10%** |
-| 权限范围 | 云端，文件上传到第三方 | 邮箱、日历、消息平台、智能家居 | **仅限当前目录和 `zhi-output/`** |
-| 运行方式 | 浏览器 | 24/7 后台守护进程 | **用完即走，不占资源** |
-| 自动化 | 不支持 | 支持 | **支持（管道、脚本、技能）** |
-
-输入 `zhi` 即可开始交互式会话 — 自然对话、提及文件名、使用 `/` 命令。
-
-**核心理念**：
-
-- **两分钟上手** — `pip install zhicli` → `zhi --setup` → 开始用。没有守护进程，没有平台授权，没有账号注册。
-- **文件留在本地** — 你的文件不会上传到任何地方。AI 直接读取你磁盘上的文件，输出写在你能看到的 `zhi-output/` 目录。
-- **做好简单的事** — 总结文档、翻译文件、识别图片文字、生成测试数据。这些重复性任务是 AI 最擅长的，也是 zhi 专注的。
-- **安全是默认的** — 不能删除文件、不能修改原文件、Shell 命令每次都要确认。不需要信任它，因为它做不了危险的事。
-
-## 项目简介
-
-`zhi` 是一个终端 AI 助手，采用**双模型架构**平衡智能与成本：
-
-- **交互对话**使用 GLM-5 — 擅长复杂推理、技能创建和开放式对话
-- **技能执行**使用 GLM-4-flash — 运行预定义工作流，成本不到 GLM-5 的 10%
-
-核心能力：
-
-- 读取文件、OCR 识别图片/PDF、抓取网页内容
-- 将结果写入 Markdown、CSV、Excel、Word 等格式
-- 通过 YAML 自定义可复用的 AI 技能（Skill）
-- 严格的文件安全机制 — 不删除、不修改原始文件
-
-## 安装
+- **双模型架构** -- 对话用 GLM-5，技能执行用 GLM-4-flash（成本仅 ~10%）
+- **15 个内置技能** -- 从文档总结到合同审查，YAML 定义，可自由扩展
+- **安全文件处理** -- 输出隔离、路径保护、Shell 确认，不删除不覆盖
 
 ```bash
 pip install zhicli
-```
-
-如需 Excel (.xlsx) 和 Word (.docx) 支持：
-
-```bash
-pip install "zhicli[all]"
-```
-
-要求 Python 3.10 或更高版本。
-
-## 快速入门
-
-**1. 配置 API 密钥**
-
-```bash
-# 运行设置向导（推荐）
 zhi --setup
-
-# 或直接设置环境变量
-export ZHI_API_KEY=sk-...
+zhi
 ```
 
-API 密钥从[智谱开放平台](https://open.bigmodel.cn)获取。
-
-**2. 开始交互式会话**
-
-```bash
-$ zhi
-Welcome to zhi. Type /help for commands.
-
-zhi> 帮我总结 report.pdf 的要点
-zhi: [OCR 识别 report.pdf...]
-zhi: 以下是报告的核心要点...
-
-zhi> /run translate readme-en.md
-[skill] translate ▸ 正在翻译...
-```
-
-交互式会话支持自然对话和 `/` 命令，按 Tab 补全命令和技能名。
-
-**3. 单次提问（不进入交互模式）**
-
-```bash
-zhi -c "什么是机器学习？"
-```
-
-**4. 从 Shell 直接运行技能**
-
-```bash
-zhi run summarize 会议记录.txt       # 总结文档
-zhi run translate readme-en.md       # 翻译为中文
-```
-
-**5. 管道输入**
-
-```bash
-git log --oneline -20 | zhi -c "总结本周的工作内容"
-```
-
-完整教程请查看 [docs/tutorials-cn.md](docs/tutorials-cn.md)。
-
-## 使用场景
-
-以下是几个典型场景，更多示例请查看 [docs/use-cases-cn.md](docs/use-cases-cn.md)。
-
-### 总结会议纪要
-
-```bash
-# 从 Shell（一次性执行）：
-zhi run summarize 产品评审会议记录.txt
-
-# 在交互式会话中：
-zhi> /run summarize 产品评审会议记录.txt
-# → 输出结构化摘要到 zhi-output/
-```
-
-### 对比文档差异
-
-```bash
-# 从 Shell（一次性执行）：
-zhi run compare 合同-v1.md 合同-v2.md
-
-# 在交互式会话中：
-zhi> /run compare 合同-v1.md 合同-v2.md
-# → 高亮两个版本之间的修改内容，输出对比报告
-```
-
-### OCR 识别图片/PDF
-
-```bash
-zhi -c "识别 合同扫描件.pdf 中的文字，保存为文本文件"
-# → 支持 PDF、PNG、JPG、GIF、WEBP，最大 20MB
-```
-
-### 从报表提取关键数据
-
-```bash
-zhi -c "读取 季度财务报表.pdf，提取关键财务指标，整理成表格保存"
-# → OCR 识别 PDF 内容，提取收入、利润等关键数据
-```
-
-### 翻译文档
-
-```bash
-zhi run translate api-specification.md
-# → 保留 Markdown 格式的完整中文翻译
-```
-
-### 自定义技能一键复用
-
-```bash
-zhi run monthly-report 销售数据.csv
-# → 用 glm-4-flash 执行，成本仅为对话的 10%
-```
-
-### 组合技能：一键完成复杂工作流
-
-组合技能将多个基础技能串联成完整的工作流。一条命令，AI 自动完成多个步骤。
-
-**会后一条龙** — 会议记录 → 结构化纪要 → 领导摘要 → 英文版：
-
-```bash
-zhi run meeting-followup 周一产品会议.txt --translate_to english
-# → 输出 3 个文件：完整纪要、executive summary、英文翻译
-```
-
-**合同审查** — 分析 + 新旧版对比 + 校对，一步到位：
-
-```bash
-zhi run contract-review 合同-v2.pdf 合同-v1.pdf
-# → 结构分析、变更清单、语言问题、风险评估，一份报告全搞定
-```
-
-**发票批量入表** — 扫描件 → 提取表格 → 汇总 Excel：
-
-```bash
-zhi run invoice-to-excel 发票扫描件/
-# → 从所有 PDF 提取行项目，合并为一张 Excel 表
-```
-
-## 教程
-
-详细的分步教程请查看 **[docs/tutorials-cn.md](docs/tutorials-cn.md)**，涵盖：
-
-| 教程 | 内容 |
-|------|------|
-| 快速入门 | 安装、配置、第一次对话 |
-| 交互式对话 | 斜杠命令、模式切换、多行输入 |
-| 文件处理 | 读取、写入、OCR 识别 |
-| 技能系统 | 内置技能、自定义技能、YAML 配置 |
-| Shell 命令 | 安全执行、确认机制、超时控制 |
-| Web 内容获取 | 抓取网页、提取分析 |
-
-## CLI 用法
+## 架构
 
 ```
-zhi                          # 交互式 REPL
-zhi -c "your message"        # 单次对话模式
-zhi run <skill> [files...]   # 运行技能
-zhi --setup                  # 设置向导
-zhi --language zh|en         # 设置界面语言
-zhi --version                # 查看版本
-zhi --debug                  # 启用调试日志
-zhi --no-color               # 禁用彩色输出
+┌─────────────────────────────────────────┐
+│              zhi CLI                    │
+├──────────────┬──────────────────────────┤
+│  交互对话     │      技能执行            │
+│  GLM-5       │      GLM-4-flash         │
+│  (智能对话)   │      (成本仅 ~10%)       │
+├──────────────┴──────────────────────────┤
+│           工具层 (7 个工具)              │
+│  file_read · file_write · file_list     │
+│  ocr · shell · web_fetch · skill_create │
+├─────────────────────────────────────────┤
+│           安全层                         │
+│  输出隔离 · 路径保护 · Shell 确认        │
+└─────────────────────────────────────────┘
 ```
 
-## 斜杠命令
+## 横向对比
+
+| 特性 | zhi | aider | Claude Code | GitHub Copilot CLI | Gemini CLI | shell-gpt | Qwen Code |
+|------|-----|-------|-------------|-------------------|------------|-----------|-----------|
+| 安装方式 | pip install | pip install | npm | brew | npm | pip | pip |
+| 配置复杂度 | 1 key (30秒) | API key + git | API key | GitHub login + VS Code | Google auth | API key | API key |
+| 中文大模型 | ✅ 原生 | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| 文件处理 | 读取+写入+OCR | 读取+编辑 | 读取+编辑 | ❌ | 读取+编辑 | ❌ | 读取+编辑 |
+| 技能系统 | ✅ YAML (15个内置) | ❌ | ❌ slash commands | ❌ | ❌ | ❌ | ❌ |
+| 成本控制 | 双模型 (技能用 flash) | 单模型 | 单模型 | 订阅制 | 免费额度 | 单模型 | 免费 |
+| 权限控制 | approve/auto 模式 | auto | auto with approval | N/A | auto | auto | auto |
+| 输出安全 | 隔离目录 | 直接编辑 | 直接编辑 | N/A | 直接编辑 | N/A | 直接编辑 |
+
+## 功能概览
+
+### 15 个内置技能
+
+基础技能（9 个）:
+
+| 技能 | 说明 | 用法 |
+|------|------|------|
+| `summarize` | 总结文档要点 | `zhi run summarize report.pdf` |
+| `translate` | 翻译文本（默认中文） | `zhi run translate readme-en.md` |
+| `extract-text` | OCR 提取 PDF/图片文字 | `zhi run extract-text scan.pdf` |
+| `extract-table` | 从文档提取表格为 CSV | `zhi run extract-table invoice.pdf` |
+| `analyze` | 深度分析文档内容和结构 | `zhi run analyze contract.pdf` |
+| `proofread` | 校对语法和拼写 | `zhi run proofread draft.md` |
+| `reformat` | 格式转换 (文本/Markdown/CSV/Excel) | `zhi run reformat data.csv` |
+| `meeting-notes` | 会议记录整理为结构化纪要 | `zhi run meeting-notes notes.txt` |
+| `compare` | 对比两个文件的差异 | `zhi run compare v1.md v2.md` |
+
+组合技能（6 个）:
+
+| 技能 | 说明 | 组合流程 |
+|------|------|----------|
+| `translate-proofread` | 翻译并校对质量 | translate -> proofread |
+| `meeting-followup` | 会议纪要 + 摘要 + 翻译 | meeting-notes -> summarize -> translate |
+| `invoice-to-excel` | 发票扫描转 Excel 汇总 | extract-table -> reformat |
+| `daily-digest` | 文件夹文档批量摘要 | file_list -> summarize (loop) |
+| `contract-review` | 合同分析 + 版本对比 + 校对 | analyze -> compare -> proofread |
+| `report-polish` | 文档润色至可发布状态 | proofread -> analyze -> reformat |
+
+### 7 个工具
+
+| 工具 | 说明 | 风险 |
+|------|------|------|
+| `file_read` | 读取工作目录内的文本文件（最大 100KB） | 否 |
+| `file_write` | 写入新文件到 `zhi-output/` | 是 |
+| `file_list` | 列出目录内容 | 否 |
+| `ocr` | 图片/PDF 文字识别（最大 20MB） | 否 |
+| `shell` | 执行 Shell 命令（始终需确认） | 是 |
+| `web_fetch` | 获取网页文本内容 | 否 |
+| `skill_create` | 创建新的技能 YAML | 是 |
+
+风险工具在审批模式下需要用户确认后才能执行。
+
+### 斜杠命令
 
 | 命令 | 说明 |
 |------|------|
 | `/help` | 显示帮助信息 |
-| `/auto` | 跳过工具确认，加快执行速度（Shell 命令仍需确认） |
-| `/approve` | 切换到审批模式（默认，风险操作需确认） |
-| `/model <name>` | 切换模型（glm-5, glm-4-flash, glm-4-air） |
-| `/think` | 启用思考模式（仅 glm-5） |
+| `/auto` | 切换到自动模式 |
+| `/approve` | 切换到审批模式（默认） |
+| `/model <name>` | 切换模型 |
+| `/think` | 启用思考模式（仅 GLM-5） |
 | `/fast` | 关闭思考模式 |
 | `/run <skill> [args]` | 运行技能 |
-| `/skill list` | 列出已安装技能 |
-| `/status` | 显示当前会话状态（模型、模式、用量） |
+| `/skill list\|new\|show\|edit\|delete` | 管理技能 |
+| `/status` | 显示当前会话状态 |
 | `/reset` | 清空对话历史 |
 | `/undo` | 撤销上一轮对话 |
 | `/usage` | 查看 Token 用量和费用 |
 | `/verbose` | 切换详细输出 |
 | `/exit` | 退出 |
 
-## 交互式功能
+### 文件安全
 
-| 功能 | 说明 |
-|------|------|
-| Tab 补全 | 按 Tab 补全命令、模型名和技能名 |
-| 历史记录 | 上/下箭头回顾历史输入（跨会话持久化） |
-| 多行输入 | 行末加 `\` 可换行继续输入 |
-| 快捷键 | Ctrl+C 取消当前输入，Ctrl+D 退出 |
+- **禁止删除** -- 没有删除工具
+- **禁止覆盖** -- `file_write` 只创建新文件
+- **输出隔离** -- 所有写入限定在 `./zhi-output/`，拒绝路径穿越
+- **Shell 确认** -- 每条命令都需要 `y/n` 确认
+- **危险命令警告** -- `rm`、`mv`、`del` 等命令触发额外警告
+- **灾难性命令拦截** -- `rm -rf /` 等模式被永久禁止
 
-## 内置工具
+### 配置
 
-| 工具 | 说明 | 风险 |
-|------|------|------|
-| `file_read` | 读取工作目录内的文本文件（最大 100KB） | 否 |
-| `file_write` | 写入新文件到 `zhi-output/`（.md, .txt, .json, .csv, .xlsx, .docx） | 是 |
-| `file_list` | 列出目录内容（文件名、大小、修改时间） | 否 |
-| `ocr` | 图片/PDF 文字识别（PNG, JPG, PDF, GIF, WEBP；最大 20MB） | 否 |
-| `shell` | 执行 Shell 命令（始终需要确认） | 是 |
-| `web_fetch` | 获取并提取网页文本内容 | 否 |
-| `skill_create` | 创建新的技能 YAML 配置 | 是 |
+配置文件位置：
 
-风险工具在审批模式下需要用户确认后才能执行。
-
-## 技能系统
-
-技能（Skill）是可复用的 AI 工作流，以 YAML 文件定义。默认使用 `glm-4-flash` 模型，成本低廉。
-
-> 技能支持两种调用方式：
-> - **Shell**：`zhi run summarize report.pdf`（执行完毕后退出）
-> - **REPL**：`/run summarize report.pdf`（在交互式会话中执行）
-
-**基础技能**（9 个）：
-
-| 技能 | 说明 | 用法示例 |
-|------|------|----------|
-| `summarize` | 总结文档要点 | `zhi run summarize report.pdf` |
-| `translate` | 翻译文本（默认中文） | `zhi run translate readme-en.md` |
-| `extract-text` | OCR 提取 PDF/图片中的文字 | `zhi run extract-text scan.pdf` |
-| `extract-table` | 从文档中提取表格为 CSV | `zhi run extract-table invoice.pdf` |
-| `analyze` | 深度分析文档内容和结构 | `zhi run analyze contract.pdf` |
-| `proofread` | 校对文档，标注语法和拼写错误 | `zhi run proofread draft.md` |
-| `reformat` | 格式转换（文本↔Markdown↔CSV↔Excel） | `zhi run reformat data.csv` |
-| `meeting-notes` | 会议记录整理为结构化纪要和行动项 | `zhi run meeting-notes notes.txt` |
-| `compare` | 对比两个文件，高亮差异 | `zhi run compare v1.md v2.md` |
-
-**组合技能**（6 个）— 串联多个基础技能，一条命令完成完整工作流：
-
-| 技能 | 组合了 | 说明 |
-|------|--------|------|
-| `daily-digest` | summarize | 扫描文件夹，汇总所有文档为一份日报 |
-| `translate-proofread` | translate → proofread | 翻译文档并校对翻译质量 |
-| `meeting-followup` | meeting-notes → summarize → translate | 会议记录 → 纪要 + 摘要 + 翻译 |
-| `contract-review` | analyze + compare + proofread | 合同分析、版本对比、语言校对一步到位 |
-| `invoice-to-excel` | extract-table → reformat | 发票扫描件批量提取为 Excel |
-| `report-polish` | proofread → analyze → reformat | 校对 + 结构优化 + 格式整理 |
-
-**基础技能 YAML 示例**：
-
-```yaml
-name: summarize
-description: Summarize a text file or document
-model: glm-4-flash
-system_prompt: |
-  You are a concise summarization assistant. Read the provided text
-  and produce a clear, well-structured summary.
-tools:
-  - file_read
-  - file_write
-max_turns: 5
-input:
-  description: A text file to summarize
-  args:
-    - name: file
-      type: file
-      required: true
-output:
-  description: Markdown summary
-  directory: zhi-output
-```
-
-**组合技能 YAML 示例** — 在 `tools` 中引用其他技能，AI 会自动编排调用：
-
-```yaml
-name: translate-proofread
-description: Translate a document and then proofread the translation
-model: glm-4-flash
-system_prompt: |
-  Workflow:
-  1. Call skill_translate to translate the document.
-  2. Call skill_proofread on the translation to check quality.
-  3. Produce a polished final translation and a quality report.
-tools:
-  - file_read
-  - file_write
-  - translate      # ← 引用 translate 技能
-  - proofread      # ← 引用 proofread 技能
-max_turns: 12
-input:
-  description: A document to translate and proofread
-  args:
-    - name: file
-      type: file
-      required: true
-output:
-  description: Polished translation and quality report
-  directory: zhi-output
-```
-
-使用 `/skill new` 交互式创建技能，或手动编写 YAML 文件。技能存储在系统配置目录的 `skills/` 下。
-
-## 文件安全
-
-`zhi` 执行严格的安全约束：
-
-- **禁止删除文件** — 没有删除工具
-- **禁止修改文件** — `file_write` 只创建新文件，不能覆盖
-- **输出目录隔离** — 所有写入限定在 `./zhi-output/`，拒绝路径穿越（`..`）
-- **Shell 始终确认** — 每条 Shell 命令都需要 `y/n` 确认，即使在 auto 模式下
-- **危险命令警告** — `rm`、`mv`、`del` 等命令触发额外警告
-- **灾难性命令拦截** — `rm -rf /` 等模式被永久禁止
-
-## 配置
-
-配置文件存储在系统配置目录中：
-
-- **macOS**: `~/Library/Application Support/zhi/config.yaml`
-- **Windows**: `%APPDATA%\zhi\config.yaml`
-- **Linux**: `~/.config/zhi/config.yaml`
-
-环境变量优先级高于配置文件：
+- macOS: `~/Library/Application Support/zhi/config.yaml`
+- Windows: `%APPDATA%\zhi\config.yaml`
+- Linux: `~/.config/zhi/config.yaml`
 
 | 环境变量 | 说明 | 默认值 |
 |----------|------|--------|
-| `ZHI_API_KEY` | 智谱 API 密钥（必需） | — |
+| `ZHI_API_KEY` | 智谱 API 密钥（必需） | -- |
 | `ZHI_DEFAULT_MODEL` | 默认对话模型 | `glm-5` |
 | `ZHI_OUTPUT_DIR` | 文件输出目录 | `zhi-output` |
+| `ZHI_LANGUAGE` | 界面语言 (en/zh) | auto |
 | `ZHI_LOG_LEVEL` | 日志级别 | `INFO` |
-| `NO_COLOR` | 禁用彩色输出（任意值） | — |
+| `NO_COLOR` | 禁用彩色输出 | -- |
 
-## 推荐工具 / Recommended Tools
+## 安装与快速入门
 
-以下工具可以显著提升你的终端 AI 体验：
+```bash
+pip install zhicli          # 基础安装
+pip install "zhicli[all]"   # 含 Excel/Word 支持
+```
 
-### 终端模拟器
+要求 Python 3.10+。API 密钥从[智谱开放平台](https://open.bigmodel.cn)获取。
 
-| 工具 | 平台 | 说明 |
-|------|------|------|
-| [iTerm2](https://iterm2.com/) | macOS | 功能强大的终端，支持分屏、搜索、图片预览 |
-| [Warp](https://www.warp.dev/) | macOS / Linux | 现代化 AI 终端，内置命令补全和历史搜索 |
-| [Windows Terminal](https://aka.ms/terminal) | Windows | 微软官方终端，支持多标签和 GPU 加速渲染 |
-| [Alacritty](https://alacritty.org/) | 跨平台 | 基于 GPU 加速的极速终端 |
+```bash
+zhi --setup                 # 运行设置向导
+zhi                         # 进入交互模式
+zhi -c "什么是机器学习？"     # 单次提问
+zhi run summarize report.pdf # 运行技能
+```
 
-### 字体
+完整文档请查看 [Documentation](https://chan-kinghin.github.io/zhicli/)。
 
-| 字体 | 说明 |
-|------|------|
-| [Nerd Fonts](https://www.nerdfonts.com/) | 含图标的编程字体集合，推荐 `FiraCode Nerd Font` 或 `JetBrainsMono Nerd Font` |
-| [Cascadia Code](https://github.com/microsoft/cascadia-code) | 微软出品，支持连字的等宽编程字体 |
+## 开发
 
-### 命令行增强
+```bash
+git clone https://github.com/chan-kinghin/zhicli.git
+cd zhicli
+pip install -e ".[dev,all]"
+pytest tests/ -v            # 测试
+ruff check src/zhi/         # 检查
+ruff format src/zhi/        # 格式化
+```
 
-| 工具 | 说明 |
-|------|------|
-| [fzf](https://github.com/junegunn/fzf) | 模糊搜索工具，快速查找文件和历史命令 |
-| [bat](https://github.com/sharkdp/bat) | 带语法高亮的 `cat` 替代品，查看文件更清晰 |
-| [eza](https://github.com/eza-community/eza) | 现代化的 `ls` 替代品，支持图标和 Git 状态 |
-| [zoxide](https://github.com/ajeetdsouza/zoxide) | 智能 `cd` 替代品，记住你常去的目录 |
-| [ripgrep (rg)](https://github.com/BurntSushi/ripgrep) | 极速文本搜索工具，比 `grep` 快数倍 |
-| [tldr](https://github.com/tldr-pages/tldr) | 简化版 man 页面，快速查看命令用法 |
+## 链接
 
-### Shell 框架
+- 📖 Documentation: https://chan-kinghin.github.io/zhicli/
+- 🐛 Issues: https://github.com/chan-kinghin/zhicli/issues
+- 📄 License: MIT
 
-| 工具 | 说明 |
-|------|------|
-| [Oh My Zsh](https://ohmyz.sh/) | Zsh 配置框架，丰富的插件和主题生态 |
-| [Starship](https://starship.rs/) | 跨 Shell 的极速提示符，美观且信息丰富 |
-| [Fish Shell](https://fishshell.com/) | 开箱即用的智能 Shell，自带语法高亮和补全 |
+---
 
-### Python 工具
+<a id="english"></a>
 
-| 工具 | 说明 |
-|------|------|
-| [pipx](https://pipx.pypa.io/) | 在隔离环境中安装 Python CLI 工具，推荐用来安装 `zhicli` |
-| [uv](https://github.com/astral-sh/uv) | 极速 Python 包管理器，`pip` 的现代替代品 |
-| [pyenv](https://github.com/pyenv/pyenv) | Python 版本管理，轻松切换多个 Python 版本 |
+# English
+
+**Intelligent terminal assistant powered by Zhipu GLM models**
+
+- **Dual-model architecture** -- GLM-5 for chat, GLM-4-flash for skills (~10% of the cost)
+- **15 built-in skills** -- From document summarization to contract review, YAML-defined, extensible
+- **Safe file handling** -- Output isolation, path protection, shell confirmation, no deletes or overwrites
+
+```bash
+pip install zhicli
+zhi --setup
+zhi
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────┐
+│              zhi CLI                    │
+├──────────────┬──────────────────────────┤
+│  Chat        │      Skill Execution     │
+│  GLM-5       │      GLM-4-flash         │
+│  (reasoning) │      (~10% cost)         │
+├──────────────┴──────────────────────────┤
+│           Tool Layer (7 tools)          │
+│  file_read · file_write · file_list     │
+│  ocr · shell · web_fetch · skill_create │
+├─────────────────────────────────────────┤
+│           Safety Layer                  │
+│  Output isolation · Path guard · Shell  │
+└─────────────────────────────────────────┘
+```
+
+## Comparison
+
+| Feature | zhi | aider | Claude Code | GitHub Copilot CLI | Gemini CLI | shell-gpt | Qwen Code |
+|---------|-----|-------|-------------|-------------------|------------|-----------|-----------|
+| Install | pip install | pip install | npm | brew | npm | pip | pip |
+| Setup | 1 key (30s) | API key + git | API key | GitHub + VS Code | Google auth | API key | API key |
+| Chinese LLM | ✅ native | ❌ | ❌ | ❌ | ❌ | ❌ | ✅ |
+| File handling | read+write+OCR | read+edit | read+edit | ❌ | read+edit | ❌ | read+edit |
+| Skill system | ✅ YAML (15 built-in) | ❌ | ❌ slash commands | ❌ | ❌ | ❌ | ❌ |
+| Cost control | dual-model (flash for skills) | single model | single model | subscription | free tier | single model | free |
+| Permissions | approve/auto mode | auto | auto with approval | N/A | auto | auto | auto |
+| Output safety | isolated directory | direct edit | direct edit | N/A | direct edit | N/A | direct edit |
+
+## Built-in Skills
+
+Basic skills (9):
+
+| Skill | Description | Usage |
+|-------|-------------|-------|
+| `summarize` | Summarize document key points | `zhi run summarize report.pdf` |
+| `translate` | Translate text (default: Chinese) | `zhi run translate readme-en.md` |
+| `extract-text` | OCR text from PDF/images | `zhi run extract-text scan.pdf` |
+| `extract-table` | Extract tables to CSV | `zhi run extract-table invoice.pdf` |
+| `analyze` | Deep analysis of document structure | `zhi run analyze contract.pdf` |
+| `proofread` | Check grammar and spelling | `zhi run proofread draft.md` |
+| `reformat` | Convert between formats | `zhi run reformat data.csv` |
+| `meeting-notes` | Structure meeting notes into minutes | `zhi run meeting-notes notes.txt` |
+| `compare` | Compare two files and highlight diffs | `zhi run compare v1.md v2.md` |
+
+Composite skills (6):
+
+| Skill | Description | Pipeline |
+|-------|-------------|----------|
+| `translate-proofread` | Translate and QA the translation | translate -> proofread |
+| `meeting-followup` | Minutes + summary + translation | meeting-notes -> summarize -> translate |
+| `invoice-to-excel` | Scanned invoices to Excel | extract-table -> reformat |
+| `daily-digest` | Batch summarize a folder | file_list -> summarize (loop) |
+| `contract-review` | Analyze + compare + proofread contract | analyze -> compare -> proofread |
+| `report-polish` | Polish a document for publication | proofread -> analyze -> reformat |
+
+## Tools
+
+| Tool | Description | Risky |
+|------|-------------|-------|
+| `file_read` | Read text files in working directory (max 100KB) | No |
+| `file_write` | Write new files to `zhi-output/` | Yes |
+| `file_list` | List directory contents | No |
+| `ocr` | Image/PDF text recognition (max 20MB) | No |
+| `shell` | Execute shell commands (always requires confirmation) | Yes |
+| `web_fetch` | Fetch and extract web page text | No |
+| `skill_create` | Create new skill YAML configs | Yes |
+
+## Safety
+
+- **No deletions** -- no delete tool exists
+- **No overwrites** -- `file_write` only creates new files
+- **Output isolation** -- all writes restricted to `./zhi-output/`, path traversal rejected
+- **Shell confirmation** -- every command requires `y/n` approval
+- **Dangerous command warnings** -- `rm`, `mv`, `del` trigger extra warnings
+- **Catastrophic command blocking** -- patterns like `rm -rf /` are permanently blocked
+
+## Install and Quick Start
+
+```bash
+pip install zhicli          # basic install
+pip install "zhicli[all]"   # with Excel/Word support
+```
+
+Requires Python 3.10+. Get an API key from [Zhipu Open Platform](https://open.bigmodel.cn).
+
+```bash
+zhi --setup                 # run setup wizard
+zhi                         # interactive mode
+zhi -c "What is ML?"        # single query
+zhi run summarize report.pdf # run a skill
+```
+
+Full documentation at [chan-kinghin.github.io/zhicli](https://chan-kinghin.github.io/zhicli/).
 
 ## Development
 
@@ -426,27 +297,19 @@ output:
 git clone https://github.com/chan-kinghin/zhicli.git
 cd zhicli
 pip install -e ".[dev,all]"
-
-# Run tests
-pytest tests/ -v
-
-# Lint and format
-ruff check src/zhi/
-ruff format src/zhi/
-
-# Type check
-mypy --strict src/zhi/
-
-# Coverage
-pytest --cov=zhi --cov-report=term-missing
+pytest tests/ -v            # tests
+ruff check src/zhi/         # lint
+ruff format src/zhi/        # format
 ```
 
-## 声明 / Disclaimer
+## Links
+
+- 📖 Documentation: https://chan-kinghin.github.io/zhicli/
+- 🐛 Issues: https://github.com/chan-kinghin/zhicli/issues
+- 📄 License: MIT
+
+---
 
 `zhi` 是一个独立的社区开源项目，与智谱 AI（Zhipu AI）没有任何隶属或认可关系。
 
 `zhi` is an independent, community-built project. It is not affiliated with or endorsed by Zhipu AI.
-
-## 许可证 / License
-
-MIT
