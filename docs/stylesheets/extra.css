@@ -1,0 +1,229 @@
+/* ==========================================================================
+   zhi CLI Documentation - Custom Stylesheet
+   Designed for MkDocs Material theme
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   1. CSS Variables
+   -------------------------------------------------------------------------- */
+:root {
+  --zhi-primary: #3f51b5;
+  --zhi-accent: #ff6d00;
+  --zhi-sun: #ffd600;
+  --zhi-gradient: linear-gradient(135deg, #ff6d00, #3f51b5);
+  --zhi-card-radius: 12px;
+  --zhi-transition: 0.2s ease;
+}
+
+/* --------------------------------------------------------------------------
+   2. ASCII Logo
+   -------------------------------------------------------------------------- */
+.zhi-logo {
+  text-align: center;
+  margin: 1.5rem auto;
+  line-height: 1.4;
+}
+
+.zhi-logo pre {
+  display: inline-block;
+  font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
+  font-size: clamp(0.85rem, 1.5vw, 1.1rem);
+  background: none !important;
+  border: none !important;
+  padding: 0.5rem 1rem;
+  margin: 0 auto;
+  background-image: var(--zhi-gradient) !important;
+  -webkit-background-clip: text !important;
+  -webkit-text-fill-color: transparent !important;
+  background-clip: text !important;
+}
+
+/* --------------------------------------------------------------------------
+   3. Hero Section
+   -------------------------------------------------------------------------- */
+.hero-section {
+  text-align: center;
+  padding: 4rem 1.5rem 2rem;
+  background: radial-gradient(ellipse at 50% 0%, rgba(63, 81, 181, 0.08) 0%, transparent 70%);
+  margin-bottom: 2rem;
+}
+
+.hero-section h1 {
+  font-size: clamp(2rem, 4vw, 2.5rem);
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  background: var(--zhi-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.hero-section > p:first-of-type,
+.hero-section > strong:first-of-type {
+  font-size: 1.15rem;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 1.5rem;
+}
+
+.hero-section .button-group {
+  display: flex;
+  justify-content: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+  margin-top: 1.5rem;
+}
+
+.hero-section .md-button {
+  border-radius: 8px;
+  padding: 0.6rem 1.5rem;
+  font-weight: 600;
+  transition: transform var(--zhi-transition), box-shadow var(--zhi-transition);
+}
+
+.hero-section .md-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(63, 81, 181, 0.3);
+}
+
+.hero-section .md-button--primary {
+  background: var(--zhi-gradient);
+  border: none;
+  color: #fff;
+}
+
+/* --------------------------------------------------------------------------
+   4. Feature Cards
+   -------------------------------------------------------------------------- */
+.md-typeset .grid.cards > ul > li {
+  border-radius: var(--zhi-card-radius);
+  padding: 1.25rem;
+  transition: transform var(--zhi-transition), box-shadow var(--zhi-transition);
+}
+
+.md-typeset .grid.cards > ul > li:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+}
+
+/* --------------------------------------------------------------------------
+   5. Code Blocks
+   -------------------------------------------------------------------------- */
+.md-typeset code {
+  border-radius: 4px;
+}
+
+.md-typeset pre > code,
+.md-typeset .highlight pre {
+  border-radius: 8px;
+}
+
+.md-typeset .highlight {
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+/* --------------------------------------------------------------------------
+   6. Admonitions
+   -------------------------------------------------------------------------- */
+.md-typeset .admonition,
+.md-typeset details {
+  border-radius: 8px;
+}
+
+/* --------------------------------------------------------------------------
+   7. Navigation & Header polish
+   -------------------------------------------------------------------------- */
+.md-header {
+  transition: background-color var(--zhi-transition);
+}
+
+.md-tabs__link--active,
+.md-tabs__link:hover {
+  opacity: 1;
+}
+
+.md-nav__link:hover {
+  color: var(--zhi-accent);
+}
+
+/* --------------------------------------------------------------------------
+   8. Selection color
+   -------------------------------------------------------------------------- */
+::selection {
+  background: rgba(255, 109, 0, 0.25);
+  color: inherit;
+}
+
+::-moz-selection {
+  background: rgba(255, 109, 0, 0.25);
+  color: inherit;
+}
+
+/* --------------------------------------------------------------------------
+   9. Smooth transitions on interactive elements
+   -------------------------------------------------------------------------- */
+a,
+.md-nav__link,
+.md-button,
+.md-typeset .tabbed-labels > label {
+  transition: color var(--zhi-transition), background-color var(--zhi-transition),
+    border-color var(--zhi-transition), opacity var(--zhi-transition);
+}
+
+/* --------------------------------------------------------------------------
+   10. Footer
+   -------------------------------------------------------------------------- */
+.md-footer {
+  margin-top: 2rem;
+}
+
+/* --------------------------------------------------------------------------
+   11. Dark Mode Overrides
+   -------------------------------------------------------------------------- */
+[data-md-color-scheme="slate"] {
+  --zhi-gradient: linear-gradient(135deg, #ff8f00, #5c6bc0);
+}
+
+[data-md-color-scheme="slate"] .zhi-logo pre {
+  text-shadow: 0 0 20px rgba(255, 109, 0, 0.5), 0 0 40px rgba(255, 109, 0, 0.2);
+}
+
+[data-md-color-scheme="slate"] .hero-section {
+  background: radial-gradient(ellipse at 50% 0%, rgba(92, 107, 192, 0.12) 0%, transparent 70%);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .grid.cards > ul > li:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 109, 0, 0.15);
+}
+
+[data-md-color-scheme="slate"] .md-typeset .highlight {
+  border-color: rgba(255, 255, 255, 0.06);
+}
+
+[data-md-color-scheme="slate"] .hero-section .md-button:hover {
+  box-shadow: 0 4px 16px rgba(255, 109, 0, 0.3);
+}
+
+/* --------------------------------------------------------------------------
+   12. Responsive Adjustments
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+  .hero-section {
+    padding: 2.5rem 1rem 1.5rem;
+  }
+
+  .hero-section h1 {
+    font-size: 1.75rem;
+  }
+
+  .hero-section .button-group {
+    flex-direction: column;
+    align-items: center;
+  }
+}

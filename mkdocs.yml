@@ -4,22 +4,26 @@ site_description: Terminal AI assistant powered by Zhipu GLM models
 repo_url: https://github.com/chan-kinghin/zhicli
 repo_name: chan-kinghin/zhicli
 
+extra_css:
+  - stylesheets/extra.css
+
 theme:
   name: material
-  language: en
+  language: zh
+  custom_dir: docs/overrides
   palette:
     - scheme: default
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-7
-        name: Switch to dark mode
+        name: 切换到深色模式
     - scheme: slate
       primary: indigo
       accent: indigo
       toggle:
         icon: material/brightness-4
-        name: Switch to light mode
+        name: 切换到浅色模式
   features:
     - navigation.tabs
     - navigation.sections
@@ -32,27 +36,27 @@ theme:
     repo: fontawesome/brands/github
 
 nav:
-  - Home: index.md
-  - Tutorials: en/tutorials.md
-  - Use Cases: en/use-cases.md
-  - Comparison: en/comparison.md
-  - Architecture: en/architecture.md
-  - Reference:
-    - Skills: en/reference/skills.md
-    - Tools: en/reference/tools.md
-    - CLI: en/reference/cli.md
-    - Configuration: en/reference/config.md
-  - 中文:
-    - 首页: zh/index.md
-    - 教程: zh/tutorials.md
-    - 使用场景: zh/use-cases.md
-    - 对比: zh/comparison.md
-    - 架构: zh/architecture.md
-    - 参考:
-      - 技能: zh/reference/skills.md
-      - 工具: zh/reference/tools.md
-      - 命令行: zh/reference/cli.md
-      - 配置: zh/reference/config.md
+  - 首页: index.md
+  - 教程: zh/tutorials.md
+  - 使用场景: zh/use-cases.md
+  - 对比: zh/comparison.md
+  - 架构: zh/architecture.md
+  - 参考:
+    - 技能: zh/reference/skills.md
+    - 工具: zh/reference/tools.md
+    - 命令行: zh/reference/cli.md
+    - 配置: zh/reference/config.md
+  - English:
+    - Home: en/index.md
+    - Tutorials: en/tutorials.md
+    - Use Cases: en/use-cases.md
+    - Comparison: en/comparison.md
+    - Architecture: en/architecture.md
+    - Reference:
+      - Skills: en/reference/skills.md
+      - Tools: en/reference/tools.md
+      - CLI: en/reference/cli.md
+      - Configuration: en/reference/config.md
 
 markdown_extensions:
   - admonition
@@ -75,9 +79,9 @@ plugins:
 
 extra:
   alternate:
-    - name: English
-      link: /zhicli/
-      lang: en
     - name: 中文
-      link: /zhicli/zh/
+      link: /zhicli/
       lang: zh
+    - name: English
+      link: /zhicli/en/
+      lang: en

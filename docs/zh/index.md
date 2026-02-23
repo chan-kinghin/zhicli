@@ -4,11 +4,30 @@ hide:
   - toc
 ---
 
+<div class="hero-section" markdown>
+
+<div class="zhi-logo" markdown>
+
+<pre>
+        · ☀ ·
+      ╱━━━━━╲
+    ╱━━━━━━━━━╲
+  ╱╱╱  ▐▌  ╲╲╲
+  ▔▔▔▔▔▔▔▔▔▔▔▔▔
+</pre>
+
+</div>
+
 # zhi CLI
 
 **由智谱 GLM 大模型驱动的终端 AI 助手**
 
 zhi 是一个开源命令行工具，将智谱 GLM 大模型带入你的终端。它将智能对话与强大的技能系统相结合，支持文档处理、OCR 识别和自动化工作流 —— 并内置安全防护机制。
+
+[开始使用 :material-arrow-right:](tutorials.md){ .md-button .md-button--primary }
+[在 GitHub 上查看 :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
+
+</div>
 
 ---
 
@@ -56,6 +75,3 @@ zhi --setup
 # 开始对话
 zhi
 ```
-
-[开始使用 :material-arrow-right:](tutorials.md){ .md-button .md-button--primary }
-[在 GitHub 上查看 :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }

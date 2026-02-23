@@ -4,58 +4,74 @@ hide:
   - toc
 ---
 
+<div class="hero-section" markdown>
+
+<div class="zhi-logo" markdown>
+
+<pre>
+        · ☀ ·
+      ╱━━━━━╲
+    ╱━━━━━━━━━╲
+  ╱╱╱  ▐▌  ╲╲╲
+  ▔▔▔▔▔▔▔▔▔▔▔▔▔
+</pre>
+
+</div>
+
 # zhi CLI
 
-**Terminal AI assistant powered by Chinese LLMs**
+**由智谱 GLM 大模型驱动的终端 AI 助手**
 
-zhi is an open-source command-line tool that brings Zhipu GLM models to your terminal. It combines intelligent chat with a powerful skill system for document processing, OCR, and automation — all with built-in safety guardrails.
+zhi 是一个开源命令行工具，将智谱 GLM 大模型带入你的终端。它将智能对话与强大的技能系统相结合，支持文档处理、OCR 识别和自动化工作流 —— 并内置安全防护机制。
 
----
-
-## Features
-
-<div class="grid cards" markdown>
-
-- :material-brain: **Dual Model Architecture**
-
-    GLM-5 for intelligent chat, GLM-4-flash for cost-effective skill execution (~10% the cost)
-
-- :material-tools: **15 Built-in Skills**
-
-    9 single-purpose + 6 composite workflows for documents, translation, OCR, and more
-
-- :material-file-document: **7 Integrated Tools**
-
-    File read/write, OCR, shell execution, web fetch, and skill creation
-
-- :material-cog: **YAML Skill System**
-
-    Create custom automation skills in minutes with simple YAML configuration
-
-- :material-translate: **Bilingual Support**
-
-    Full English and Chinese UI with automatic language detection
-
-- :material-shield-check: **Security First**
-
-    Output isolation to zhi-output/, path traversal protection, shell command confirmation
+[开始使用 :material-arrow-right:](zh/tutorials.md){ .md-button .md-button--primary }
+[在 GitHub 上查看 :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
 
 </div>
 
 ---
 
-## Quick Start
+## 功能特性
+
+<div class="grid cards" markdown>
+
+- :material-brain: **双模型架构**
+
+    GLM-5 用于智能对话，GLM-4-flash 用于高性价比的技能执行（成本约为前者的 10%）
+
+- :material-tools: **15 个内置技能**
+
+    9 个单一用途技能 + 6 个组合工作流，覆盖文档处理、翻译、OCR 等场景
+
+- :material-file-document: **7 个集成工具**
+
+    文件读写、OCR 识别、Shell 执行、网页抓取、技能创建等
+
+- :material-cog: **YAML 技能系统**
+
+    使用简单的 YAML 配置，几分钟内即可创建自定义自动化技能
+
+- :material-translate: **中英双语支持**
+
+    完整的中英文界面，自动检测语言偏好
+
+- :material-shield-check: **安全优先**
+
+    输出隔离至 zhi-output/ 目录、路径遍历防护、Shell 命令确认机制
+
+</div>
+
+---
+
+## 快速开始
 
 ```bash
-# Install
+# 安装
 pip install zhicli
 
-# Configure (30 seconds)
+# 配置（30 秒完成）
 zhi --setup
 
-# Start chatting
+# 开始对话
 zhi
 ```
-
-[Get Started :material-arrow-right:](en/tutorials.md){ .md-button .md-button--primary }
-[View on GitHub :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
