@@ -6,6 +6,29 @@
 
 > 一个开源的 Python 命令行工具，由智谱 GLM 大模型驱动。安装即用，让 AI 在终端中帮你处理文件、识别图片、执行任务。
 
+## 为什么选择 zhi？ / Why zhi?
+
+你不需要 ChatGPT 的月费来总结一个文档。你也不需要 OpenClaw 那样连接邮箱、日历、智能家居的全能助手。
+
+**zhi 只做一件事：让 AI 在你的终端里处理文件任务。**
+
+| | ChatGPT | OpenClaw | **zhi** |
+|---|---|---|---|
+| 安装方式 | 注册账号、打开浏览器 | Node ≥22 + 后台守护进程 + 消息平台授权 | **`pip install zhicli`** |
+| 上手时间 | 即时 | 10-30 分钟 | **2 分钟**（安装 + API 密钥） |
+| 读取本地文件 | 需手动上传 | 需配置权限 | **直接读取当前目录** |
+| 运行成本 | $20/月订阅 | 按 API 用量计费 | **按用量付费，技能执行成本 <10%** |
+| 权限范围 | 云端，文件上传到第三方 | 邮箱、日历、消息平台、智能家居 | **仅限当前目录和 `zhi-output/`** |
+| 运行方式 | 浏览器 | 24/7 后台守护进程 | **用完即走，不占资源** |
+| 自动化 | 不支持 | 支持 | **支持（管道、脚本、技能）** |
+
+**核心理念**：
+
+- **两分钟上手** — `pip install zhicli` → `zhi --setup` → 开始用。没有守护进程，没有平台授权，没有账号注册。
+- **文件留在本地** — 你的文件不会上传到任何地方。AI 直接读取你磁盘上的文件，输出写在你能看到的 `zhi-output/` 目录。
+- **做好简单的事** — 总结文档、翻译文件、识别图片文字、生成测试数据。这些重复性任务是 AI 最擅长的，也是 zhi 专注的。
+- **安全是默认的** — 不能删除文件、不能修改原文件、Shell 命令每次都要确认。不需要信任它，因为它做不了危险的事。
+
 ## 项目简介
 
 `zhi` 是一个终端 AI 助手，采用**双模型架构**平衡智能与成本：
@@ -191,7 +214,19 @@ zhi --no-color               # 禁用彩色输出
 
 技能（Skill）是可复用的 AI 工作流，以 YAML 文件定义。默认使用 `glm-4-flash` 模型，成本低廉。
 
-**内置技能**：`summarize`（总结文档）、`translate`（翻译文本，默认中文）
+**内置技能**（9 个）：
+
+| 技能 | 说明 | 用法示例 |
+|------|------|----------|
+| `summarize` | 总结文档要点 | `zhi run summarize report.pdf` |
+| `translate` | 翻译文本（默认中文） | `zhi run translate readme-en.md` |
+| `extract-text` | OCR 提取 PDF/图片中的文字 | `zhi run extract-text scan.pdf` |
+| `extract-table` | 从文档中提取表格为 CSV | `zhi run extract-table invoice.pdf` |
+| `analyze` | 深度分析文档内容和结构 | `zhi run analyze contract.pdf` |
+| `proofread` | 校对文档，标注语法和拼写错误 | `zhi run proofread draft.md` |
+| `reformat` | 格式转换（文本↔Markdown↔CSV↔Excel） | `zhi run reformat data.csv` |
+| `meeting-notes` | 会议记录整理为结构化纪要和行动项 | `zhi run meeting-notes notes.txt` |
+| `compare` | 对比两个文件，高亮差异 | `zhi run compare v1.md v2.md` |
 
 **YAML 示例**：
 
