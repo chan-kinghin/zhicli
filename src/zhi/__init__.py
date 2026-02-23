@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from importlib.metadata import version
 
-__version__ = version("zhi")
+__version__ = version("zhicli")
 
 # Public API
 from zhi.client import Client

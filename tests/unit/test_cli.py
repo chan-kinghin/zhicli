@@ -40,7 +40,8 @@ class TestCliNoColor:
     """Test --no-color flag."""
 
     def test_no_color_sets_env(
-        self, monkeypatch: pytest.MonkeyPatch,
+        self,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
         import os
 
