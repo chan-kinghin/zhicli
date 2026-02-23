@@ -4,7 +4,7 @@ An agentic CLI powered by Zhipu GLM models. Create and run custom AI skills from
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Tests: passing](https://img.shields.io/badge/tests-298%20passing-brightgreen)
+![Tests: passing](https://img.shields.io/badge/tests-309%20passing-brightgreen)
 
 ## What is zhi?
 
@@ -13,18 +13,18 @@ An agentic CLI powered by Zhipu GLM models. Create and run custom AI skills from
 - **Interactive chat** uses GLM-5 for complex reasoning, skill creation, and open-ended conversation
 - **Skill execution** uses GLM-4-flash for running predefined workflows at less than 10% of the cost
 
-Install with `pip install zhi`, set your Zhipu API key, and start working. First useful output in under 60 seconds.
+Install with `pip install zhicli`, set your Zhipu API key, and start working. First useful output in under 60 seconds.
 
 ## Install
 
 ```bash
-pip install zhi
+pip install zhicli
 ```
 
 For optional Excel and Word file support:
 
 ```bash
-pip install "zhi[all]"
+pip install "zhicli[all]"
 ```
 
 Requires Python 3.10 or higher.
@@ -202,6 +202,10 @@ mypy --strict src/zhi/
 # Coverage
 pytest --cov=zhi --cov-report=term-missing
 ```
+
+## Disclaimer
+
+`zhi` is an independent, community-built project. It is not affiliated with or endorsed by Zhipu AI (智谱AI).
 
 ## License
 

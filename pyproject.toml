@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "zhi"
+name = "zhicli"
 version = "0.1.0"
 description = "Agentic CLI powered by Zhipu GLM models"
 readme = "README.md"
@@ -29,6 +29,9 @@ dependencies = [
     "platformdirs>=4.0",
     "httpx>=0.25",
 ]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/zhi"]
 
 [project.urls]
 Homepage = "https://github.com/chan-kinghin/zhicli"
