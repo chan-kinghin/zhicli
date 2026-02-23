@@ -493,7 +493,7 @@ Inspired by: aider's token/cost tracking in its output.
 
 ## 8. Competitive Analysis
 
-### 8.1 Patterns to Adopt from Claude Code
+### 8.1 Patterns to Adopt from CLI Assistants
 
 | Pattern | How zhi should adopt it | Priority |
 |---------|------------------------|----------|
@@ -502,7 +502,7 @@ Inspired by: aider's token/cost tracking in its output.
 | **Tab to accept suggestions** | After AI proposes a plan or action, show `Press Tab to accept, Enter to modify`. | Medium |
 | **Interrupt and redirect (Ctrl+C)** | Already in plan. Preserve conversation context on interrupt. | High |
 | **IME support** | Use `prompt_toolkit` which handles CJK input correctly. Test with Chinese input specifically since zhi targets Chinese-speaking users. | High |
-| **Permission mode toggle** | Already in plan (`/auto`, `/approve`). Match Claude Code's UX of clear mode indicator in prompt. | High |
+| **Permission mode toggle** | Already in plan (`/auto`, `/approve`). Match similar CLI tools' UX of clear mode indicator in prompt. | High |
 
 ### 8.2 Patterns to Adopt from Aider
 

@@ -35,3 +35,5 @@ Thumbs.db
 # Project
 zhi-output/
 *.log
+CLAUDE.md
+docs/plans/
