@@ -149,6 +149,31 @@ zhi run monthly-report 销售数据.csv
 # → 用 glm-4-flash 执行，成本仅为对话的 10%
 ```
 
+### 组合技能：一键完成复杂工作流
+
+组合技能将多个基础技能串联成完整的工作流。一条命令，AI 自动完成多个步骤。
+
+**会后一条龙** — 会议记录 → 结构化纪要 → 领导摘要 → 英文版：
+
+```bash
+zhi run meeting-followup 周一产品会议.txt --translate_to english
+# → 输出 3 个文件：完整纪要、executive summary、英文翻译
+```
+
+**合同审查** — 分析 + 新旧版对比 + 校对，一步到位：
+
+```bash
+zhi run contract-review 合同-v2.pdf 合同-v1.pdf
+# → 结构分析、变更清单、语言问题、风险评估，一份报告全搞定
+```
+
+**发票批量入表** — 扫描件 → 提取表格 → 汇总 Excel：
+
+```bash
+zhi run invoice-to-excel 发票扫描件/
+# → 从所有 PDF 提取行项目，合并为一张 Excel 表
+```
+
 ## 教程
 
 详细的分步教程请查看 **[docs/tutorials-cn.md](docs/tutorials-cn.md)**，涵盖：
@@ -214,7 +239,7 @@ zhi --no-color               # 禁用彩色输出
 
 技能（Skill）是可复用的 AI 工作流，以 YAML 文件定义。默认使用 `glm-4-flash` 模型，成本低廉。
 
-**内置技能**（9 个）：
+**基础技能**（9 个）：
 
 | 技能 | 说明 | 用法示例 |
 |------|------|----------|
@@ -228,7 +253,18 @@ zhi --no-color               # 禁用彩色输出
 | `meeting-notes` | 会议记录整理为结构化纪要和行动项 | `zhi run meeting-notes notes.txt` |
 | `compare` | 对比两个文件，高亮差异 | `zhi run compare v1.md v2.md` |
 
-**YAML 示例**：
+**组合技能**（6 个）— 串联多个基础技能，一条命令完成完整工作流：
+
+| 技能 | 组合了 | 说明 |
+|------|--------|------|
+| `daily-digest` | summarize | 扫描文件夹，汇总所有文档为一份日报 |
+| `translate-proofread` | translate → proofread | 翻译文档并校对翻译质量 |
+| `meeting-followup` | meeting-notes → summarize → translate | 会议记录 → 纪要 + 摘要 + 翻译 |
+| `contract-review` | analyze + compare + proofread | 合同分析、版本对比、语言校对一步到位 |
+| `invoice-to-excel` | extract-table → reformat | 发票扫描件批量提取为 Excel |
+| `report-polish` | proofread → analyze → reformat | 校对 + 结构优化 + 格式整理 |
+
+**基础技能 YAML 示例**：
 
 ```yaml
 name: summarize
@@ -249,6 +285,34 @@ input:
       required: true
 output:
   description: Markdown summary
+  directory: zhi-output
+```
+
+**组合技能 YAML 示例** — 在 `tools` 中引用其他技能，AI 会自动编排调用：
+
+```yaml
+name: translate-proofread
+description: Translate a document and then proofread the translation
+model: glm-4-flash
+system_prompt: |
+  Workflow:
+  1. Call skill_translate to translate the document.
+  2. Call skill_proofread on the translation to check quality.
+  3. Produce a polished final translation and a quality report.
+tools:
+  - file_read
+  - file_write
+  - translate      # ← 引用 translate 技能
+  - proofread      # ← 引用 proofread 技能
+max_turns: 12
+input:
+  description: A document to translate and proofread
+  args:
+    - name: file
+      type: file
+      required: true
+output:
+  description: Polished translation and quality report
   directory: zhi-output
 ```
 
