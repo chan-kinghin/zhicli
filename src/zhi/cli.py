@@ -11,6 +11,8 @@ import os
 import sys
 from typing import Any
 
+from zhi.i18n import prepend_preamble, set_language, t
+
 logger = logging.getLogger(__name__)
 
 
@@ -46,6 +48,13 @@ def _build_parser() -> argparse.ArgumentParser:
         "--no-color",
         action="store_true",
         help="Disable colored output",
+    )
+    parser.add_argument(
+        "--language",
+        type=str,
+        default=None,
+        metavar="LANG",
+        help=t("cli.language_help"),
     )
 
     subparsers = parser.add_subparsers(dest="subcommand")
@@ -133,7 +142,7 @@ def _build_context(
 def _require_api_key(config: Any) -> bool:
     """Check API key and print error if missing. Returns True if key exists."""
     if not config.has_api_key:
-        print("Error: No API key configured. Run `zhi --setup` first.")
+        print(t("cli.no_api_key"))
         return False
     return True
 
@@ -156,7 +165,7 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
     skills = discover_skills()
     if skill_name not in skills:
         available = ", ".join(sorted(skills.keys())) if skills else "(none)"
-        print(f"Error: Unknown skill '{skill_name}'. Available: {available}")
+        print(t("cli.unknown_skill", skill=skill_name, available=available))
         sys.exit(1)
 
     skill = skills[skill_name]
@@ -171,7 +180,7 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
         ui,
         model=skill.model,
         tool_names=skill.tools,
-        system_prompt=skill.system_prompt,
+        system_prompt=prepend_preamble(skill.system_prompt),
         user_message=user_content,
         max_turns=skill.max_turns,
     )
@@ -184,7 +193,7 @@ def _run_pipe(config: Any, ui: Any) -> None:
     """Read stdin and run through the agent."""
     stdin_text = sys.stdin.read().strip()
     if not stdin_text:
-        print("Error: No input received from stdin.")
+        print(t("cli.no_stdin"))
         sys.exit(1)
     _run_oneshot(config, ui, stdin_text)
 
@@ -217,6 +226,10 @@ def main(argv: list[str] | None = None) -> None:
     # Handle --debug
     _setup_logging(debug=args.debug)
 
+    # Handle --language
+    if args.language:
+        set_language(args.language)
+
     # Handle --setup
     if args.setup:
         from zhi.config import run_wizard
@@ -229,6 +242,11 @@ def main(argv: list[str] | None = None) -> None:
     from zhi.ui import UI
 
     config = load_config()
+
+    # Apply language from config
+    if not args.language and config.language != "auto":
+        set_language(config.language)
+
     ui = UI(no_color=bool(os.environ.get("NO_COLOR")))
 
     # Handle 'run' subcommand

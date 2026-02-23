@@ -18,6 +18,7 @@ from prompt_toolkit.history import FileHistory, InMemoryHistory
 
 from zhi.agent import Context, PermissionMode, Role
 from zhi.agent import run as agent_run
+from zhi.i18n import prepend_preamble, t
 from zhi.models import MODELS, is_valid_model
 from zhi.ui import UI
 
@@ -166,7 +167,7 @@ class ReplSession:
 
         handler = handlers.get(command)
         if handler is None:
-            msg = f"Unknown command: {command}. Type /help for available commands."
+            msg = t("repl.unknown_cmd", command=command)
             self._ui.print(msg)
             return msg
 
@@ -174,34 +175,21 @@ class ReplSession:
 
     def _handle_help(self, _args: str = "") -> str:
         """Show available commands."""
-        help_text = """Available commands:
-  /help              Show this help message
-  /auto              Switch to auto mode (no permission prompts)
-  /approve           Switch to approve mode (default)
-  /model <name>      Switch model (glm-5, glm-4-flash, glm-4-air)
-  /think             Enable thinking mode
-  /fast              Disable thinking mode
-  /run <skill> [args]  Run a skill
-  /skill list|new|show|edit|delete  Manage skills
-  /reset             Clear conversation history
-  /undo              Remove last exchange
-  /usage             Show token/cost stats
-  /verbose           Toggle verbose output
-  /exit              Exit zhi"""
+        help_text = t("repl.help")
         self._ui.print(help_text)
         return help_text
 
     def _handle_auto(self, _args: str = "") -> str:
         """Switch to auto mode."""
         self._context.permission_mode = PermissionMode.AUTO
-        msg = "Mode switched to auto"
+        msg = t("repl.mode_auto")
         self._ui.print(msg)
         return msg
 
     def _handle_approve(self, _args: str = "") -> str:
         """Switch to approve mode."""
         self._context.permission_mode = PermissionMode.APPROVE
-        msg = "Mode switched to approve"
+        msg = t("repl.mode_approve")
         self._ui.print(msg)
         return msg
 
@@ -210,31 +198,37 @@ class ReplSession:
         model_name = args.strip()
         if not model_name:
             available = ", ".join(MODELS.keys())
-            msg = f"Current model: {self._context.model}. Available: {available}"
+            msg = t(
+                "repl.current_model", model=self._context.model, available=available
+            )
             self._ui.print(msg)
             return msg
 
         if not is_valid_model(model_name):
-            msg = f"Unknown model: {model_name}. Available: {', '.join(MODELS.keys())}"
+            msg = t(
+                "repl.unknown_model",
+                model=model_name,
+                available=", ".join(MODELS.keys()),
+            )
             self._ui.print(msg)
             return msg
 
         self._context.model = model_name
-        msg = f"Model switched to {model_name}"
+        msg = t("repl.model_switched", model=model_name)
         self._ui.print(msg)
         return msg
 
     def _handle_think(self, _args: str = "") -> str:
         """Enable thinking mode."""
         self._context.thinking_enabled = True
-        msg = "Thinking mode enabled"
+        msg = t("repl.think_on")
         self._ui.print(msg)
         return msg
 
     def _handle_fast(self, _args: str = "") -> str:
         """Disable thinking mode."""
         self._context.thinking_enabled = False
-        msg = "Thinking mode disabled"
+        msg = t("repl.think_off")
         self._ui.print(msg)
         return msg
 
@@ -243,14 +237,14 @@ class ReplSession:
         self._running = False
         if self._context.session_tokens > 0:
             self._ui.show_usage(self._context.session_tokens, 0.0)
-        msg = "Goodbye!"
+        msg = t("repl.goodbye")
         self._ui.print(msg)
         return msg
 
     def _handle_run(self, args: str = "") -> str:
         """Run a skill by name with optional file arguments."""
         if not args.strip():
-            msg = "Usage: /run <skill> [files...]"
+            msg = t("repl.run_usage")
             self._ui.print(msg)
             return msg
 
@@ -263,7 +257,7 @@ class ReplSession:
         skills = discover_skills()
         if skill_name not in skills:
             available = ", ".join(sorted(skills.keys())) if skills else "(none)"
-            msg = f"Unknown skill '{skill_name}'. Available: {available}"
+            msg = t("repl.unknown_skill", skill=skill_name, available=available)
             self._ui.print(msg)
             return msg
 
@@ -302,7 +296,7 @@ class ReplSession:
             conversation.append(
                 {
                     "role": Role.SYSTEM.value,
-                    "content": skill.system_prompt,
+                    "content": prepend_preamble(skill.system_prompt),
                 }
             )
         conversation.append({"role": Role.USER.value, "content": user_content})
@@ -326,16 +320,16 @@ class ReplSession:
         try:
             result = agent_run(skill_context)
         except KeyboardInterrupt:
-            self._ui.print("\nInterrupted")
+            self._ui.print(t("repl.interrupted"))
             return "Interrupted"
         except Exception as e:
             logger.exception("Skill run error")
-            msg = f"Error running skill '{skill_name}': {e}"
+            msg = t("repl.skill_error", skill=skill_name, error=str(e))
             self._ui.print(msg)
             return msg
 
         if result is None:
-            msg = f"Skill '{skill_name}' reached max turns without a final response."
+            msg = t("repl.skill_max_turns", skill=skill_name)
             self._ui.show_warning(msg)
             return msg
 
@@ -352,10 +346,10 @@ class ReplSession:
 
             skills = discover_skills()
             if not skills:
-                msg = "No skills installed. Create one with /skill new"
+                msg = t("repl.no_skills")
                 self._ui.print(msg)
                 return msg
-            lines = ["Available skills:"]
+            lines = [t("repl.skill_list_title")]
             for name, cfg in sorted(skills.items()):
                 source_tag = f" ({cfg.source})" if cfg.source else ""
                 lines.append(f"  {name}{source_tag} — {cfg.description}")
@@ -363,38 +357,38 @@ class ReplSession:
             self._ui.print(msg)
             return msg
         elif subcommand == "new":
-            msg = "Skill creation not yet implemented"
+            msg = t("repl.skill_new_todo")
             self._ui.print(msg)
             return msg
         elif subcommand == "show":
             name = parts[1] if len(parts) > 1 else ""
             if not name:
-                msg = "Usage: /skill show <name>"
+                msg = t("repl.skill_show_usage")
                 self._ui.print(msg)
                 return msg
-            msg = f"Skill '{name}' not found"
+            msg = t("repl.skill_not_found", name=name)
             self._ui.print(msg)
             return msg
         elif subcommand == "edit":
             name = parts[1] if len(parts) > 1 else ""
             if not name:
-                msg = "Usage: /skill edit <name>"
+                msg = t("repl.skill_edit_usage")
                 self._ui.print(msg)
                 return msg
-            msg = f"Skill '{name}' not found"
+            msg = t("repl.skill_not_found", name=name)
             self._ui.print(msg)
             return msg
         elif subcommand == "delete":
             name = parts[1] if len(parts) > 1 else ""
             if not name:
-                msg = "Usage: /skill delete <name>"
+                msg = t("repl.skill_delete_usage")
                 self._ui.print(msg)
                 return msg
-            msg = f"Skill '{name}' not found"
+            msg = t("repl.skill_not_found", name=name)
             self._ui.print(msg)
             return msg
         else:
-            msg = "Usage: /skill list|new|show|edit|delete <name>"
+            msg = t("repl.skill_usage")
             self._ui.print(msg)
             return msg
 
@@ -406,7 +400,7 @@ class ReplSession:
             for msg in self._context.conversation
             if msg.get("role") == Role.SYSTEM.value
         ]
-        msg = "Conversation cleared"
+        msg = t("repl.cleared")
         self._ui.print(msg)
         return msg
 
@@ -421,12 +415,12 @@ class ReplSession:
                 break
 
         if last_user_idx is None:
-            msg = "Nothing to undo"
+            msg = t("repl.nothing_undo")
             self._ui.print(msg)
             return msg
 
         self._context.conversation = conv[:last_user_idx]
-        msg = "Last exchange removed"
+        msg = t("repl.undone")
         self._ui.print(msg)
         return msg
 
@@ -442,8 +436,7 @@ class ReplSession:
     def _handle_verbose(self, _args: str = "") -> str:
         """Toggle verbose output."""
         self._ui.verbose = not self._ui.verbose
-        state = "on" if self._ui.verbose else "off"
-        msg = f"Verbose mode {state}"
+        msg = t("repl.verbose_on") if self._ui.verbose else t("repl.verbose_off")
         self._ui.print(msg)
         return msg
 
@@ -460,7 +453,7 @@ class ReplSession:
         try:
             result = agent_run(self._context)
         except KeyboardInterrupt:
-            self._ui.print("\nInterrupted")
+            self._ui.print(t("repl.interrupted"))
             return None
         except Exception as e:
             logger.exception("Agent error")
@@ -475,6 +468,6 @@ class ReplSession:
             return None
 
         if result is None:
-            self._ui.show_warning("Max turns reached without a final response")
+            self._ui.show_warning(t("repl.max_turns"))
 
         return result

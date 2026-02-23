@@ -49,7 +49,6 @@ system_prompt: |
   - Focus on substantive issues, not minor formatting.
   - Flag any clause that imposes unlimited liability or one-sided obligations.
   - If comparing versions, prioritize changes to financial terms and obligations.
-  - If the contract is in Chinese, write the review in Chinese.
   - Save as a single markdown file.
 tools:
   - file_read

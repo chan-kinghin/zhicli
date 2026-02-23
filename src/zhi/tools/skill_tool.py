@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any
 
 from zhi.agent import Context, PermissionMode, Role
 from zhi.agent import run as agent_run
+from zhi.i18n import prepend_preamble
 
 if TYPE_CHECKING:
     from zhi.agent import ClientLike
@@ -171,7 +172,7 @@ class SkillTool:
             conversation.append(
                 {
                     "role": Role.SYSTEM.value,
-                    "content": self._skill.system_prompt,
+                    "content": prepend_preamble(self._skill.system_prompt),
                 }
             )
         conversation.append({"role": Role.USER.value, "content": user_input})

@@ -33,7 +33,6 @@ system_prompt: |
   - Extract action items aggressively. Anything phrased as "X will do Y" or "need to Z" is an action item.
   - If owners or deadlines are unclear, mark them as "TBD".
   - Preserve important context but remove filler words and off-topic tangents.
-  - If the notes are in Chinese, output in Chinese.
 tools:
   - file_read
   - ocr

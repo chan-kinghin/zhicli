@@ -15,6 +15,8 @@ from pathlib import Path
 import platformdirs
 import yaml
 
+from zhi.i18n import set_language, t
+
 logger = logging.getLogger(__name__)
 
 _APP_NAME = "zhi"
@@ -40,6 +42,7 @@ class ZhiConfig:
     output_dir: str = "zhi-output"
     max_turns: int = 30
     log_level: str = "INFO"
+    language: str = "auto"
 
     def validate(self) -> list[str]:
         """Validate config and return list of warnings."""
@@ -88,6 +91,7 @@ def load_config(config_dir: Path | None = None) -> ZhiConfig:
         "ZHI_DEFAULT_MODEL": "default_model",
         "ZHI_OUTPUT_DIR": "output_dir",
         "ZHI_LOG_LEVEL": "log_level",
+        "ZHI_LANGUAGE": "language",
     }
     for env_var, config_key in env_mappings.items():
         value = os.environ.get(env_var)
@@ -133,44 +137,48 @@ def run_wizard(config_dir: Path | None = None) -> ZhiConfig:
 
     from zhi import __version__
 
-    print(f"Welcome to zhi (v{__version__})")
+    print(t("setup.welcome", version=__version__))
     print()
-    print("Let's get you set up. This takes about 30 seconds.")
+    print(t("setup.intro"))
     print()
 
     # Step 1: API Key
-    print("Step 1/3: API Key")
-    print("  Paste your Zhipu API key (get one at open.bigmodel.cn):")
+    print(t("setup.step1"))
+    print(t("setup.step1_prompt"))
     api_key = input("  > ").strip()
 
     if not api_key:
-        print("  No API key provided. You can set it later with ZHI_API_KEY.")
+        print(t("setup.no_key"))
         api_key = ""
 
     # Step 2: Defaults
     print()
-    print("Step 2/3: Defaults")
-    default_model = input("  Default model for chat [glm-5]: ").strip() or "glm-5"
-    skill_model = (
-        input("  Default model for skills [glm-4-flash]: ").strip() or "glm-4-flash"
-    )
-    output_dir = input("  Output directory [zhi-output]: ").strip() or "zhi-output"
+    print(t("setup.step2"))
+    default_model = input(t("setup.model_prompt")).strip() or "glm-5"
+    skill_model = input(t("setup.skill_model_prompt")).strip() or "glm-4-flash"
+    output_dir = input(t("setup.output_prompt")).strip() or "zhi-output"
+    language = input(t("setup.language_prompt")).strip() or "auto"
 
     # Step 3: Demo
     print()
-    print("Step 3/3: Quick Demo")
-    run_demo = input("  Want to try a sample skill? [Y/n]: ").strip().lower()
+    print(t("setup.step3"))
+    run_demo = input(t("setup.demo_prompt")).strip().lower()
     if run_demo in ("", "y", "yes"):
-        print("  Demo skipped (not yet implemented).")
+        print(t("setup.demo_skip"))
 
     config = ZhiConfig(
         api_key=api_key,
         default_model=default_model,
         skill_model=skill_model,
         output_dir=output_dir,
+        language=language,
     )
     save_config(config, config_dir=config_dir)
 
+    # Apply language setting immediately
+    if language != "auto":
+        set_language(language)
+
     print()
-    print("Setup complete. Type /help to see available commands.")
+    print(t("setup.complete"))
     return config

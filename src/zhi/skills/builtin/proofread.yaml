@@ -20,7 +20,6 @@ system_prompt: |
   - Do not rewrite the entire document. Only flag specific issues.
   - Respect the author's voice and tone. Only suggest style changes that improve clarity.
   - For ambiguous cases, explain why you suggest the change.
-  - If the document is in Chinese, proofread in Chinese.
   - Save the report as a markdown file.
 tools:
   - file_read

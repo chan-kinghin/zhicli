@@ -10,6 +10,7 @@ import os
 from typing import Any
 
 from zhi.errors import ZhiError, format_error
+from zhi.i18n import t
 
 
 def _no_color() -> bool:
@@ -63,7 +64,7 @@ class UI:
             return
         from rich.text import Text
 
-        styled = Text("Thinking...\n", style="dim italic")
+        styled = Text(t("ui.thinking"), style="dim italic")
         for line in text.splitlines():
             styled.append(f"  {line}\n", style="dim italic")
         self._console.print(styled)
@@ -135,11 +136,15 @@ class UI:
         from rich.text import Text
 
         content = Text()
-        content.append(f"Error: {error.message}\n", style="bold red")
+        content.append(
+            t("ui.error_label", message=error.message) + "\n", style="bold red"
+        )
         if error.log_details:
-            content.append(f"Reason: {error.log_details}\n", style="yellow")
+            content.append(
+                t("ui.reason_label", details=error.log_details) + "\n", style="yellow"
+            )
         if error.suggestions:
-            content.append("Try:\n", style="bold")
+            content.append(t("ui.try_label") + "\n", style="bold")
             for i, suggestion in enumerate(error.suggestions, 1):
                 content.append(f"  {i}. {suggestion}\n")
 
@@ -159,7 +164,9 @@ class UI:
 
         from rich.panel import Panel
 
-        panel = Panel(message, border_style="yellow", title="Warning", expand=False)
+        panel = Panel(
+            message, border_style="yellow", title=t("ui.warning_title"), expand=False
+        )
         self._console.print(panel)
 
     def ask_permission(self, tool_name: str, args: dict[str, Any]) -> bool:
@@ -169,13 +176,13 @@ class UI:
             args_str = args_str[:77] + "..."
 
         if self._no_color:
-            response = input(f"[CONFIRM] Allow {tool_name}({args_str})? [y/n]: ")
+            response = input(t("ui.confirm_nocolor", tool=tool_name, args=args_str))
             return response.strip().lower() in ("y", "yes")
 
         from rich.prompt import Confirm
 
         return Confirm.ask(
-            f"Allow [bold]{tool_name}[/bold]({args_str})?",
+            t("ui.confirm_rich", tool=tool_name, args=args_str),
             console=self._console,
             default=False,
         )
@@ -190,11 +197,11 @@ class UI:
         parts = []
         if files_read:
             s = "s" if files_read != 1 else ""
-            parts.append(f"{files_read} file{s} read")
+            parts.append(t("ui.files_read", count=files_read, s=s))
         if files_written:
             s = "s" if files_written != 1 else ""
-            parts.append(f"{files_written} file{s} written")
-        summary = ", ".join(parts) if parts else "done"
+            parts.append(t("ui.files_written", count=files_written, s=s))
+        summary = ", ".join(parts) if parts else t("ui.done_fallback")
         elapsed_str = f"({elapsed:.1f}s)" if elapsed > 0 else ""
 
         if self._no_color:
@@ -203,29 +210,29 @@ class UI:
 
         from rich.text import Text
 
-        text = Text("Done: ", style="bold green")
+        text = Text(t("ui.done_prefix"), style="bold green")
         text.append(f"{summary} {elapsed_str}".strip())
         self._console.print(text)
 
     def show_usage(self, tokens: int, cost: float) -> None:
         """Display token and cost usage."""
         if self._no_color:
-            print(f"[USAGE] Session used {tokens:,} tokens (~${cost:.4f})")
+            print(t("ui.usage_nocolor", tokens=f"{tokens:,}", cost=f"{cost:.4f}"))
             return
 
         from rich.text import Text
 
-        text = Text("Session used ", style="dim")
+        text = Text(t("ui.session_used"), style="dim")
         text.append(f"{tokens:,}", style="bold")
-        text.append(f" tokens (~${cost:.4f})", style="dim")
+        text.append(t("ui.tokens_suffix", cost=f"{cost:.4f}"), style="dim")
         self._console.print(text)
 
     def show_banner(self, version: str) -> None:
         """Display the startup banner with pixel-art-inspired logo."""
         if self._no_color:
             print(f"\n  zhi v{version}")
-            print("  Terminal AI powered by Zhipu GLM")
-            print("  Type /help for commands.\n")
+            print(f"  {t('banner.tagline')}")
+            print(f"  {t('banner.hint')}\n")
             return
 
         c = self._console
@@ -240,9 +247,9 @@ class UI:
         )
         c.print(
             "[dark_blue]  ▔▔▔▔▔▔▔▔▔▔▔▔▔[/dark_blue]"
-            "   [dim]Terminal AI · Zhipu GLM[/dim]"
+            f"   [dim]{t('banner.tagline_short')}[/dim]"
         )
-        c.print("[dim]                  Type /help for commands.[/dim]")
+        c.print(f"[dim]                  {t('banner.hint')}[/dim]")
         c.print()
 
     def print(self, message: str) -> None:

@@ -45,7 +45,6 @@ system_prompt: |
   Rules:
   - Preserve the author's voice and tone — improve clarity without rewriting.
   - Do not change factual content, numbers, or proper nouns.
-  - If the document is in Chinese, keep it in Chinese.
   - The polished version should be a complete document, not a diff or patch.
   - Default output format is markdown unless the user specifies otherwise.
 tools:

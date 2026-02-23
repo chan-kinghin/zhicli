@@ -38,7 +38,6 @@ system_prompt: |
   - Skip binary files, images without OCR relevance, and system files.
   - If a file cannot be read, note it in the report and continue.
   - Order documents by relevance or group by topic, not just alphabetically.
-  - If the documents are in Chinese, write the digest in Chinese.
   - Save the final digest as a single markdown file.
 tools:
   - file_list

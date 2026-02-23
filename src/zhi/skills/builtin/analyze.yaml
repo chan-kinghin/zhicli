@@ -30,7 +30,6 @@ system_prompt: |
   Rules:
   - Be objective. Analyze what the document says, not what you think it should say.
   - Cite specific sections or quotes when making claims about the content.
-  - If the document is in Chinese, write the analysis in Chinese.
   - Save the report as a markdown file.
 tools:
   - file_read
