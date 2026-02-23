@@ -80,24 +80,27 @@ _STRINGS: dict[str, dict[str, str]] = {
     "en": {
         # -- Banner --
         "banner.tagline": "Terminal AI powered by Zhipu GLM",
-        "banner.hint": "Type /help for commands.",
+        "banner.hint": "Type a message to chat, or /help for commands.",
         "banner.tagline_short": "Terminal AI \u00b7 Zhipu GLM",
         # -- REPL commands --
         "repl.help": (
             "Available commands:\n"
             "  /help              Show this help message\n"
-            "  /auto              Switch to auto mode (no permission prompts)\n"
-            "  /approve           Switch to approve mode (default)\n"
+            "  /auto              Switch to auto mode (skip tool confirmations, faster)\n"
+            "  /approve           Switch to approve mode (confirm before tools, safer)\n"
             "  /model <name>      Switch model (glm-5, glm-4-flash, glm-4-air)\n"
             "  /think             Enable thinking mode\n"
             "  /fast              Disable thinking mode\n"
             "  /run <skill> [args]  Run a skill\n"
-            "  /skill list|new|show|edit|delete  Manage skills\n"
+            "  /skill list        List available skills\n"
+            "  /status            Show current session state\n"
             "  /reset             Clear conversation history\n"
             "  /undo              Remove last exchange\n"
             "  /usage             Show token/cost stats\n"
             "  /verbose           Toggle verbose output\n"
-            "  /exit              Exit zhi"
+            "  /exit              Exit zhi\n"
+            "\n"
+            "Tip: End a line with \\ for multi-line input."
         ),
         "repl.unknown_cmd": "Unknown command: {command}. Type /help for available commands.",
         "repl.mode_auto": "Mode switched to auto",
@@ -126,6 +129,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "repl.undone": "Last exchange removed",
         "repl.verbose_on": "Verbose mode on",
         "repl.verbose_off": "Verbose mode off",
+        "repl.status": "Model: {model} | Mode: {mode} | Thinking: {thinking} | Verbose: {verbose} | Turns: {turns} | Tokens: {tokens}",
+        "repl.error_try_again": "Try again",
+        "repl.error_check_connection": "Check your API key and connection",
+        "repl.reset_confirm": "Clear entire conversation? [y/N]: ",
+        "repl.on": "on",
+        "repl.off": "off",
         "repl.max_turns": "Max turns reached without a final response",
         # -- UI --
         "ui.thinking": "Thinking...\n",
@@ -137,11 +146,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ui.confirm_rich": "Allow [bold]{tool}[/bold]({args})?",
         "ui.files_read": "{count} file{s} read",
         "ui.files_written": "{count} file{s} written",
+        "ui.tool_done": "  done",
+        "ui.thinking_prefix": "[thinking] ",
         "ui.done_fallback": "done",
         "ui.done_prefix": "Done: ",
-        "ui.usage_nocolor": "[USAGE] Session used {tokens} tokens (~${cost})",
-        "ui.session_used": "Session used ",
-        "ui.tokens_suffix": " tokens (~${cost})",
+        "ui.usage_nocolor": "[USAGE] Session: {tokens} tokens",
+        "ui.session_used": "Session: ",
+        "ui.tokens_suffix": " tokens",
         # -- Setup wizard --
         "setup.welcome": "Welcome to zhi (v{version})",
         "setup.intro": "Let's get you set up. This takes about 30 seconds.",
@@ -175,24 +186,27 @@ _STRINGS: dict[str, dict[str, str]] = {
     "zh": {
         # -- Banner --
         "banner.tagline": "\u667a\u8c31 GLM \u9a71\u52a8\u7684\u7ec8\u7aef AI",
-        "banner.hint": "\u8f93\u5165 /help \u67e5\u770b\u547d\u4ee4\u5217\u8868\u3002",
+        "banner.hint": "\u8f93\u5165\u6d88\u606f\u5f00\u59cb\u5bf9\u8bdd\uff0c\u6216 /help \u67e5\u770b\u547d\u4ee4\u3002",
         "banner.tagline_short": "\u7ec8\u7aef AI \u00b7 \u667a\u8c31 GLM",
         # -- REPL commands --
         "repl.help": (
             "\u53ef\u7528\u547d\u4ee4\uff1a\n"
             "  /help              \u663e\u793a\u6b64\u5e2e\u52a9\u4fe1\u606f\n"
-            "  /auto              \u5207\u6362\u5230\u81ea\u52a8\u6a21\u5f0f\uff08\u65e0\u6743\u9650\u63d0\u793a\uff09\n"
-            "  /approve           \u5207\u6362\u5230\u786e\u8ba4\u6a21\u5f0f\uff08\u9ed8\u8ba4\uff09\n"
+            "  /auto              \u5207\u6362\u5230\u81ea\u52a8\u6a21\u5f0f\uff08\u8df3\u8fc7\u5de5\u5177\u786e\u8ba4\uff0c\u66f4\u5feb\uff09\n"
+            "  /approve           \u5207\u6362\u5230\u786e\u8ba4\u6a21\u5f0f\uff08\u5de5\u5177\u6267\u884c\u524d\u786e\u8ba4\uff0c\u66f4\u5b89\u5168\uff09\n"
             "  /model <\u540d\u79f0>      \u5207\u6362\u6a21\u578b (glm-5, glm-4-flash, glm-4-air)\n"
             "  /think             \u542f\u7528\u601d\u8003\u6a21\u5f0f\n"
             "  /fast              \u5173\u95ed\u601d\u8003\u6a21\u5f0f\n"
             "  /run <\u6280\u80fd> [\u6587\u4ef6]  \u8fd0\u884c\u6280\u80fd\n"
-            "  /skill list|new|show|edit|delete  \u7ba1\u7406\u6280\u80fd\n"
+            "  /skill list        \u5217\u51fa\u53ef\u7528\u6280\u80fd\n"
+            "  /status            \u663e\u793a\u5f53\u524d\u4f1a\u8bdd\u72b6\u6001\n"
             "  /reset             \u6e05\u9664\u5bf9\u8bdd\u5386\u53f2\n"
             "  /undo              \u64a4\u9500\u4e0a\u4e00\u8f6e\u5bf9\u8bdd\n"
             "  /usage             \u67e5\u770b token/\u8d39\u7528\u7edf\u8ba1\n"
             "  /verbose           \u5207\u6362\u8be6\u7ec6\u8f93\u51fa\n"
-            "  /exit              \u9000\u51fa zhi"
+            "  /exit              \u9000\u51fa zhi\n"
+            "\n"
+            "\u63d0\u793a\uff1a\u884c\u672b\u8f93\u5165 \\ \u53ef\u6362\u884c\u7ee7\u7eed\u8f93\u5165\u3002"
         ),
         "repl.unknown_cmd": "\u672a\u77e5\u547d\u4ee4\uff1a{command}\u3002\u8f93\u5165 /help \u67e5\u770b\u53ef\u7528\u547d\u4ee4\u3002",
         "repl.mode_auto": "\u5df2\u5207\u6362\u5230\u81ea\u52a8\u6a21\u5f0f",
@@ -221,6 +235,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "repl.undone": "\u5df2\u79fb\u9664\u6700\u540e\u4e00\u8f6e\u5bf9\u8bdd",
         "repl.verbose_on": "\u8be6\u7ec6\u6a21\u5f0f \u5f00",
         "repl.verbose_off": "\u8be6\u7ec6\u6a21\u5f0f \u5173",
+        "repl.status": "\u6a21\u578b\uff1a{model} | \u6a21\u5f0f\uff1a{mode} | \u601d\u8003\uff1a{thinking} | \u8be6\u7ec6\uff1a{verbose} | \u8f6e\u6b21\uff1a{turns} | Token\uff1a{tokens}",
+        "repl.error_try_again": "\u8bf7\u91cd\u8bd5",
+        "repl.error_check_connection": "\u8bf7\u68c0\u67e5 API \u5bc6\u94a5\u548c\u7f51\u7edc\u8fde\u63a5",
+        "repl.reset_confirm": "\u6e05\u9664\u6574\u4e2a\u5bf9\u8bdd\uff1f[y/N]\uff1a",
+        "repl.on": "\u5f00",
+        "repl.off": "\u5173",
         "repl.max_turns": "\u5df2\u8fbe\u5230\u6700\u5927\u8f6e\u6570\uff0c\u672a\u83b7\u5f97\u6700\u7ec8\u54cd\u5e94",
         # -- UI --
         "ui.thinking": "\u601d\u8003\u4e2d...\n",
@@ -232,11 +252,13 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ui.confirm_rich": "\u5141\u8bb8 [bold]{tool}[/bold]({args})\uff1f",
         "ui.files_read": "{count} \u4e2a\u6587\u4ef6\u5df2\u8bfb\u53d6",
         "ui.files_written": "{count} \u4e2a\u6587\u4ef6\u5df2\u5199\u5165",
+        "ui.tool_done": "  \u5b8c\u6210",
+        "ui.thinking_prefix": "[\u601d\u8003] ",
         "ui.done_fallback": "\u5b8c\u6210",
         "ui.done_prefix": "\u5b8c\u6210\uff1a",
-        "ui.usage_nocolor": "[\u7edf\u8ba1] \u672c\u6b21\u4f7f\u7528 {tokens} \u4e2a token\uff08~${cost}\uff09",
-        "ui.session_used": "\u672c\u6b21\u4f7f\u7528 ",
-        "ui.tokens_suffix": " \u4e2a token\uff08~${cost}\uff09",
+        "ui.usage_nocolor": "[\u7edf\u8ba1] \u672c\u6b21\uff1a{tokens} \u4e2a token",
+        "ui.session_used": "\u672c\u6b21\uff1a",
+        "ui.tokens_suffix": " \u4e2a token",
         # -- Setup wizard --
         "setup.welcome": "\u6b22\u8fce\u4f7f\u7528 zhi (v{version})",
         "setup.intro": "\u8ba9\u6211\u4eec\u6765\u5b8c\u6210\u521d\u59cb\u8bbe\u7f6e\uff0c\u5927\u7ea6\u9700\u8981 30 \u79d2\u3002",

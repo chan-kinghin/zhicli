@@ -45,18 +45,24 @@ class TestLanguageResolution:
         monkeypatch.delenv("LC_ALL", raising=False)
         assert resolve_language() == "en"
 
-    def test_resolve_auto_detects_zh_from_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_resolve_auto_detects_zh_from_env(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         set_language("auto")
         monkeypatch.setenv("ZHI_LANGUAGE", "zh")
         assert resolve_language() == "zh"
 
-    def test_resolve_auto_detects_zh_from_lang(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_resolve_auto_detects_zh_from_lang(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         set_language("auto")
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.setenv("LANG", "zh_CN.UTF-8")
         assert resolve_language() == "zh"
 
-    def test_resolve_auto_detects_zh_from_lc_all(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_resolve_auto_detects_zh_from_lc_all(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         set_language("auto")
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.delenv("LANG", raising=False)
@@ -71,7 +77,9 @@ class TestLanguageResolution:
 
 
 class TestTranslation:
-    def test_t_returns_english_by_default(self, monkeypatch: pytest.MonkeyPatch) -> None:
+    def test_t_returns_english_by_default(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         set_language("auto")
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.delenv("LANG", raising=False)
@@ -121,6 +129,7 @@ class TestTranslation:
 
     def test_all_en_keys_have_zh_translations(self) -> None:
         from zhi.i18n import _STRINGS
+
         en_keys = set(_STRINGS["en"].keys())
         zh_keys = set(_STRINGS["zh"].keys())
         missing = en_keys - zh_keys

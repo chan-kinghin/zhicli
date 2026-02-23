@@ -47,7 +47,9 @@ class UI:
         if self._no_color:
             print(text, end="", flush=True)
             return
-        self._console.print(text, end="")
+        from rich.text import Text
+
+        self._console.print(Text(text), end="")
 
     def stream_end(self) -> None:
         """End a streaming block with a newline."""
@@ -59,12 +61,13 @@ class UI:
     def show_thinking(self, text: str) -> None:
         """Display thinking text in dim/italic."""
         if self._no_color:
+            prefix = t("ui.thinking_prefix")
             for line in text.splitlines():
-                print(f"  {line}")
+                print(f"{prefix}{line}")
             return
         from rich.text import Text
 
-        styled = Text(t("ui.thinking"), style="dim italic")
+        styled = Text("Thinking:\n", style="dim bold")
         for line in text.splitlines():
             styled.append(f"  {line}\n", style="dim italic")
         self._console.print(styled)
@@ -113,6 +116,14 @@ class UI:
                 text = Text(f"  {name}: ", style="green")
                 text.append(display, style="dim")
                 self._console.print(text)
+        else:
+            if self._no_color:
+                print(t("ui.tool_done"))
+            else:
+                from rich.text import Text
+
+                text = Text(t("ui.tool_done"), style="dim green")
+                self._console.print(text)
 
     def show_spinner(self, message: str) -> Any:
         """Show a spinner with a message. Returns a context manager."""
@@ -159,13 +170,16 @@ class UI:
     def show_warning(self, message: str) -> None:
         """Display a warning message in yellow."""
         if self._no_color:
-            print(f"[WARN] {message}")
+            print(f"[WARN] !! {message}")
             return
 
         from rich.panel import Panel
 
         panel = Panel(
-            message, border_style="yellow", title=t("ui.warning_title"), expand=False
+            f"!! {message}",
+            border_style="yellow",
+            title=t("ui.warning_title"),
+            expand=False,
         )
         self._console.print(panel)
 
@@ -214,17 +228,17 @@ class UI:
         text.append(f"{summary} {elapsed_str}".strip())
         self._console.print(text)
 
-    def show_usage(self, tokens: int, cost: float) -> None:
-        """Display token and cost usage."""
+    def show_usage(self, tokens: int, cost: float = 0.0) -> None:
+        """Display token usage."""
         if self._no_color:
-            print(t("ui.usage_nocolor", tokens=f"{tokens:,}", cost=f"{cost:.4f}"))
+            print(t("ui.usage_nocolor", tokens=f"{tokens:,}"))
             return
 
         from rich.text import Text
 
         text = Text(t("ui.session_used"), style="dim")
         text.append(f"{tokens:,}", style="bold")
-        text.append(t("ui.tokens_suffix", cost=f"{cost:.4f}"), style="dim")
+        text.append(t("ui.tokens_suffix"), style="dim")
         self._console.print(text)
 
     def show_banner(self, version: str) -> None:
@@ -251,6 +265,23 @@ class UI:
         )
         c.print(f"[dim]                  {t('banner.hint')}[/dim]")
         c.print()
+
+    def show_waiting(self, model: str) -> None:
+        """Display a brief waiting indicator before API call."""
+        if self._no_color:
+            print(f"[...] {model}", end="", flush=True)
+        else:
+            from rich.text import Text
+
+            text = Text(f"  {model} ", style="dim cyan")
+            self._console.print(text, end="")
+
+    def clear_waiting(self) -> None:
+        """Clear the waiting indicator."""
+        if self._no_color:
+            print("\r" + " " * 40 + "\r", end="", flush=True)
+        else:
+            self._console.print("\r" + " " * 40 + "\r", end="")
 
     def print(self, message: str) -> None:
         """Print a plain message."""

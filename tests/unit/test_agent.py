@@ -86,6 +86,7 @@ def _make_context(
     on_thinking: Any = None,
     on_tool_start: Any = None,
     on_tool_end: Any = None,
+    on_waiting: Any = None,
 ) -> Context:
     """Create a Context with a mock client that returns given responses."""
     client = MagicMock()
@@ -119,6 +120,7 @@ def _make_context(
         on_thinking=on_thinking,
         on_tool_start=on_tool_start,
         on_tool_end=on_tool_end,
+        on_waiting=on_waiting,
         on_permission=on_permission,
     )
 
@@ -470,6 +472,16 @@ class TestAgentCallbacks:
 
         on_tool_start.assert_called_once_with("file_read", {"path": "f.txt"})
         on_tool_end.assert_called_once_with("file_read", "data")
+
+    def test_agent_on_waiting_called(self) -> None:
+        """on_waiting callback is called before chat."""
+        on_waiting = MagicMock()
+        responses = [MockResponse(content="Hello!")]
+        ctx = _make_context(responses, on_waiting=on_waiting)
+
+        run(ctx)
+
+        on_waiting.assert_called_once_with("glm-5")
 
 
 class TestAgentOutputTruncation:

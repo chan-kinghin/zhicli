@@ -67,7 +67,7 @@ class TestUINoColor:
         ui.verbose = False
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
             ui.show_tool_end("file_read", "file content here")
-        assert mock_out.getvalue() == ""
+        assert "done" in mock_out.getvalue().lower()
 
     def test_show_error(self) -> None:
         from zhi.errors import ApiError
@@ -115,9 +115,8 @@ class TestUINoColor:
     def test_show_usage(self) -> None:
         ui = self._make_ui()
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
-            ui.show_usage(1500, 0.0150)
+            ui.show_usage(1500)
         output = mock_out.getvalue()
-        assert "[USAGE]" in output
         assert "1,500" in output
 
     def test_ask_permission_yes(self) -> None:
@@ -143,6 +142,27 @@ class TestUINoColor:
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
             ui.print("Hello")
         assert "Hello" in mock_out.getvalue()
+
+    def test_stream_rich_markup_not_interpreted(self) -> None:
+        """Text with Rich markup chars should display literally."""
+        ui = self._make_ui()
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.stream("[bold]not bold[/bold]")
+        assert "[bold]" in mock_out.getvalue()
+
+    def test_show_thinking_has_prefix(self) -> None:
+        ui = self._make_ui()
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_thinking("deep thought")
+        output = mock_out.getvalue()
+        assert "thinking" in output.lower()
+        assert "deep thought" in output
+
+    def test_show_waiting(self) -> None:
+        ui = self._make_ui()
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_waiting("glm-5")
+        assert "glm-5" in mock_out.getvalue()
 
 
 class TestUIRich:
@@ -184,7 +204,7 @@ class TestUIRich:
 
     def test_show_usage_rich(self) -> None:
         ui = self._make_ui()
-        ui.show_usage(500, 0.005)
+        ui.show_usage(500)
 
     def test_print_rich(self) -> None:
         ui = self._make_ui()

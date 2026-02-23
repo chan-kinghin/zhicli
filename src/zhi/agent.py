@@ -79,6 +79,7 @@ class Context:
     on_thinking: Callable[[str], None] | None = None
     on_tool_start: Callable[[str, dict[str, Any]], None] | None = None
     on_tool_end: Callable[[str, str], None] | None = None
+    on_waiting: Callable[[str], None] | None = None
     on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None
 
 
@@ -93,6 +94,9 @@ def run(context: Context) -> str | None:
     """
     for turn in range(context.max_turns):
         logger.debug("Agent turn %d/%d", turn + 1, context.max_turns)
+
+        if context.on_waiting:
+            context.on_waiting(context.model)
 
         response = context.client.chat(
             messages=context.conversation,

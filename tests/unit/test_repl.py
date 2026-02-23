@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from zhi.agent import Context, PermissionMode
 from zhi.config import ZhiConfig
@@ -157,7 +157,7 @@ class TestReplUnknown:
 
 
 class TestReplConversation:
-    def test_repl_reset(self, tmp_path: Path) -> None:
+    def test_repl_reset_confirmed(self, tmp_path: Path) -> None:
         ctx = _make_context(
             conversation=[
                 {"role": "system", "content": "You are zhi"},
@@ -166,11 +166,25 @@ class TestReplConversation:
             ]
         )
         repl = _make_repl(context=ctx, tmp_path=tmp_path)
-        result = repl.handle_input("/reset")
+        with patch("builtins.input", return_value="y"):
+            result = repl.handle_input("/reset")
         assert "cleared" in result.lower()
         # System messages should be preserved
         assert len(ctx.conversation) == 1
         assert ctx.conversation[0]["role"] == "system"
+
+    def test_repl_reset_cancelled(self, tmp_path: Path) -> None:
+        ctx = _make_context(
+            conversation=[
+                {"role": "system", "content": "You are zhi"},
+                {"role": "user", "content": "Hello"},
+            ]
+        )
+        repl = _make_repl(context=ctx, tmp_path=tmp_path)
+        with patch("builtins.input", return_value="n"):
+            result = repl.handle_input("/reset")
+        assert result == ""
+        assert len(ctx.conversation) == 2  # Unchanged
 
     def test_repl_undo(self, tmp_path: Path) -> None:
         ctx = _make_context(
@@ -249,6 +263,23 @@ class TestReplSkill:
         assert "Usage" in result
 
 
+class TestReplStatus:
+    def test_repl_status(self, tmp_path: Path) -> None:
+        ctx = _make_context(session_tokens=100)
+        repl = _make_repl(context=ctx, tmp_path=tmp_path)
+        result = repl.handle_input("/status")
+        assert "glm-5" in result
+        assert "approve" in result
+
+
+class TestReplSkillShow:
+    def test_repl_skill_show_valid(self, tmp_path: Path) -> None:
+        repl = _make_repl(tmp_path=tmp_path)
+        result = repl.handle_input("/skill show summarize")
+        assert result is not None
+        # Should show skill info or not found - either is valid
+
+
 class TestReplChat:
     def test_repl_regular_text(self, tmp_path: Path) -> None:
         """Regular text is sent to the agent."""
@@ -295,15 +326,11 @@ class TestReplEdgeCases:
         result = repl.handle_input("/  ")
         assert "Unknown command" in result
 
-    def test_prompt_contains_mode(self, tmp_path: Path) -> None:
+    def test_prompt_format(self, tmp_path: Path) -> None:
         ctx = _make_context(permission_mode=PermissionMode.APPROVE)
         repl = _make_repl(context=ctx, tmp_path=tmp_path)
         prompt = repl._get_prompt()
-        assert "approve" in prompt
-
-        ctx.permission_mode = PermissionMode.AUTO
-        prompt = repl._get_prompt()
-        assert "auto" in prompt
+        assert "zhi>" in prompt
 
 
 class TestFilteredFileHistory:

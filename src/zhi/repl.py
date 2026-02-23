@@ -6,6 +6,7 @@ multi-line input, and CJK/IME support.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -13,7 +14,7 @@ from typing import Any
 
 import platformdirs
 from prompt_toolkit import PromptSession
-from prompt_toolkit.completion import WordCompleter
+from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.history import FileHistory, InMemoryHistory
 
 from zhi.agent import Context, PermissionMode, Role
@@ -37,6 +38,7 @@ _SLASH_COMMANDS = [
     "/exit",
     "/run",
     "/skill",
+    "/status",
     "/reset",
     "/undo",
     "/usage",
@@ -53,6 +55,42 @@ class _FilteredFileHistory(FileHistory):
         if _SENSITIVE_PATTERNS.search(string):
             return
         super().store_string(string)
+
+
+class _ZhiCompleter(Completer):
+    """Context-aware completer for zhi REPL."""
+
+    def __init__(
+        self,
+        commands: list[str],
+        models: list[str],
+        skills_fn: Any,
+    ) -> None:
+        self._commands = commands
+        self._models = models
+        self._skills_fn = skills_fn
+
+    def get_completions(self, document: Any, complete_event: Any) -> Any:
+        text = document.text_before_cursor
+        if text.startswith("/run "):
+            prefix = text[5:]
+            for name in sorted(self._skills_fn()):
+                if name.startswith(prefix):
+                    yield Completion(name, start_position=-len(prefix))
+        elif text.startswith("/model "):
+            prefix = text[7:]
+            for name in self._models:
+                if name.startswith(prefix):
+                    yield Completion(name, start_position=-len(prefix))
+        elif text.startswith("/skill "):
+            prefix = text[7:]
+            for sub in ["list", "show", "edit", "delete"]:
+                if sub.startswith(prefix):
+                    yield Completion(sub, start_position=-len(prefix))
+        elif text.startswith("/"):
+            for cmd in self._commands:
+                if cmd.startswith(text):
+                    yield Completion(cmd, start_position=-len(text))
 
 
 class ReplSession:
@@ -84,9 +122,13 @@ class ReplSession:
             self._history = InMemoryHistory()
 
         # Set up tab completion
-        completions = list(_SLASH_COMMANDS)
-        completions.extend(MODELS.keys())
-        self._completer = WordCompleter(completions, sentence=True)
+        from zhi.skills import discover_skills
+
+        self._completer = _ZhiCompleter(
+            commands=list(_SLASH_COMMANDS),
+            models=list(MODELS.keys()),
+            skills_fn=lambda: list(discover_skills().keys()),
+        )
 
         self._session: PromptSession[str] = PromptSession(
             history=self._history,
@@ -94,9 +136,8 @@ class ReplSession:
         )
 
     def _get_prompt(self) -> str:
-        """Get the prompt string with mode indicator."""
-        mode = self._context.permission_mode.value
-        return f"You [{mode}]: "
+        """Get the prompt string."""
+        return "zhi> "
 
     def run(self) -> None:
         """Run the REPL loop until /exit or Ctrl+D."""
@@ -159,6 +200,7 @@ class ReplSession:
             "/exit": self._handle_exit,
             "/run": self._handle_run,
             "/skill": self._handle_skill,
+            "/status": self._handle_status,
             "/reset": self._handle_reset,
             "/undo": self._handle_undo,
             "/usage": self._handle_usage,
@@ -232,11 +274,28 @@ class ReplSession:
         self._ui.print(msg)
         return msg
 
+    def _handle_status(self, _args: str = "") -> str:
+        """Show current session state."""
+        thinking = t("repl.on") if self._context.thinking_enabled else t("repl.off")
+        verbose = t("repl.on") if self._ui.verbose else t("repl.off")
+        turns = len([m for m in self._context.conversation if m.get("role") == "user"])
+        msg = t(
+            "repl.status",
+            model=self._context.model,
+            mode=self._context.permission_mode.value,
+            thinking=thinking,
+            verbose=verbose,
+            turns=str(turns),
+            tokens=str(self._context.session_tokens),
+        )
+        self._ui.print(msg)
+        return msg
+
     def _handle_exit(self, _args: str = "") -> str:
         """Exit the REPL."""
         self._running = False
         if self._context.session_tokens > 0:
-            self._ui.show_usage(self._context.session_tokens, 0.0)
+            self._ui.show_usage(self._context.session_tokens)
         msg = t("repl.goodbye")
         self._ui.print(msg)
         return msg
@@ -314,7 +373,13 @@ class ReplSession:
             on_thinking=self._ui.show_thinking,
             on_tool_start=self._ui.show_tool_start,
             on_tool_end=self._ui.show_tool_end,
-            on_permission=lambda tool, call: self._ui.ask_permission(tool.name, {}),
+            on_permission=lambda tool, call: self._ui.ask_permission(
+                tool.name,
+                json.loads(call["function"]["arguments"])
+                if isinstance(call["function"]["arguments"], str)
+                else call["function"]["arguments"],
+            ),
+            on_waiting=self._ui.show_waiting,
         )
 
         try:
@@ -366,7 +431,23 @@ class ReplSession:
                 msg = t("repl.skill_show_usage")
                 self._ui.print(msg)
                 return msg
-            msg = t("repl.skill_not_found", name=name)
+            from zhi.skills import discover_skills
+
+            skills = discover_skills()
+            if name not in skills:
+                msg = t("repl.skill_not_found", name=name)
+                self._ui.print(msg)
+                return msg
+            skill = skills[name]
+            lines = [
+                f"Name: {skill.name}",
+                f"Description: {skill.description}",
+                f"Model: {skill.model}",
+                f"Tools: {', '.join(skill.tools)}",
+                f"Max turns: {skill.max_turns}",
+                f"Source: {skill.source}",
+            ]
+            msg = "\n".join(lines)
             self._ui.print(msg)
             return msg
         elif subcommand == "edit":
@@ -375,7 +456,14 @@ class ReplSession:
                 msg = t("repl.skill_edit_usage")
                 self._ui.print(msg)
                 return msg
-            msg = t("repl.skill_not_found", name=name)
+            from zhi.skills import discover_skills
+
+            skills = discover_skills()
+            if name not in skills:
+                msg = t("repl.skill_not_found", name=name)
+                self._ui.print(msg)
+                return msg
+            msg = "Editing skills is not yet supported. Edit the YAML file directly."
             self._ui.print(msg)
             return msg
         elif subcommand == "delete":
@@ -384,7 +472,14 @@ class ReplSession:
                 msg = t("repl.skill_delete_usage")
                 self._ui.print(msg)
                 return msg
-            msg = t("repl.skill_not_found", name=name)
+            from zhi.skills import discover_skills
+
+            skills = discover_skills()
+            if name not in skills:
+                msg = t("repl.skill_not_found", name=name)
+                self._ui.print(msg)
+                return msg
+            msg = "Deleting skills is not yet supported."
             self._ui.print(msg)
             return msg
         else:
@@ -394,6 +489,12 @@ class ReplSession:
 
     def _handle_reset(self, _args: str = "") -> str:
         """Clear conversation history."""
+        try:
+            response = input(t("repl.reset_confirm"))
+            if response.strip().lower() not in ("y", "yes"):
+                return ""
+        except (KeyboardInterrupt, EOFError):
+            return ""
         # Keep system messages
         self._context.conversation = [
             msg
@@ -427,10 +528,8 @@ class ReplSession:
     def _handle_usage(self, _args: str = "") -> str:
         """Show token/cost stats."""
         tokens = self._context.session_tokens
-        # Rough cost estimate
-        cost = tokens * 0.00001  # placeholder
-        self._ui.show_usage(tokens, cost)
-        msg = f"Tokens: {tokens}, Cost: ~${cost:.4f}"
+        self._ui.show_usage(tokens)
+        msg = f"Tokens: {tokens}"
         return msg
 
     def _handle_verbose(self, _args: str = "") -> str:
@@ -462,7 +561,10 @@ class ReplSession:
             self._ui.show_error(
                 ApiError(
                     str(e),
-                    suggestions=["Try again", "Check your API key and connection"],
+                    suggestions=[
+                        t("repl.error_try_again"),
+                        t("repl.error_check_connection"),
+                    ],
                 )
             )
             return None

@@ -6,6 +6,7 @@ Handles argument parsing and dispatches to REPL, one-shot, or skill run modes.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -135,7 +136,13 @@ def _build_context(
         on_thinking=ui.show_thinking,
         on_tool_start=ui.show_tool_start,
         on_tool_end=ui.show_tool_end,
-        on_permission=lambda tool, call: ui.ask_permission(tool.name, {}),
+        on_permission=lambda tool, call: ui.ask_permission(
+            tool.name,
+            json.loads(call["function"]["arguments"])
+            if isinstance(call["function"]["arguments"], str)
+            else call["function"]["arguments"],
+        ),
+        on_waiting=ui.show_waiting,
     )
 
 

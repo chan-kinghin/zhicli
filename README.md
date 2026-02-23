@@ -2,7 +2,7 @@
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Tests: passing](https://img.shields.io/badge/tests-333%20passing-brightgreen)
+![Tests: passing](https://img.shields.io/badge/tests-354%20passing-brightgreen)
 
 > 一个开源的 Python 命令行工具，由智谱 GLM 大模型驱动。安装即用，让 AI 在终端中帮你处理文件、识别图片、执行任务。
 
@@ -21,6 +21,8 @@
 | 权限范围 | 云端，文件上传到第三方 | 邮箱、日历、消息平台、智能家居 | **仅限当前目录和 `zhi-output/`** |
 | 运行方式 | 浏览器 | 24/7 后台守护进程 | **用完即走，不占资源** |
 | 自动化 | 不支持 | 支持 | **支持（管道、脚本、技能）** |
+
+输入 `zhi` 即可开始交互式会话 — 自然对话、提及文件名、使用 `/` 命令。
 
 **核心理念**：
 
@@ -71,16 +73,21 @@ export ZHI_API_KEY=sk-...
 
 API 密钥从[智谱开放平台](https://open.bigmodel.cn)获取。
 
-**2. 开始对话**
+**2. 开始交互式会话**
 
 ```bash
 $ zhi
 Welcome to zhi. Type /help for commands.
 
-You [approve]: 帮我总结 report.pdf 的要点
+zhi> 帮我总结 report.pdf 的要点
 zhi: [OCR 识别 report.pdf...]
 zhi: 以下是报告的核心要点...
+
+zhi> /run translate readme-en.md
+[skill] translate ▸ 正在翻译...
 ```
+
+交互式会话支持自然对话和 `/` 命令，按 Tab 补全命令和技能名。
 
 **3. 单次提问（不进入交互模式）**
 
@@ -88,7 +95,7 @@ zhi: 以下是报告的核心要点...
 zhi -c "什么是机器学习？"
 ```
 
-**4. 运行内置技能**
+**4. 从 Shell 直接运行技能**
 
 ```bash
 zhi run summarize 会议记录.txt       # 总结文档
@@ -110,14 +117,22 @@ git log --oneline -20 | zhi -c "总结本周的工作内容"
 ### 总结会议纪要
 
 ```bash
+# 从 Shell（一次性执行）：
 zhi run summarize 产品评审会议记录.txt
+
+# 在交互式会话中：
+zhi> /run summarize 产品评审会议记录.txt
 # → 输出结构化摘要到 zhi-output/
 ```
 
 ### 对比文档差异
 
 ```bash
+# 从 Shell（一次性执行）：
 zhi run compare 合同-v1.md 合同-v2.md
+
+# 在交互式会话中：
+zhi> /run compare 合同-v1.md 合同-v2.md
 # → 高亮两个版本之间的修改内容，输出对比报告
 ```
 
@@ -194,6 +209,7 @@ zhi                          # 交互式 REPL
 zhi -c "your message"        # 单次对话模式
 zhi run <skill> [files...]   # 运行技能
 zhi --setup                  # 设置向导
+zhi --language zh|en         # 设置界面语言
 zhi --version                # 查看版本
 zhi --debug                  # 启用调试日志
 zhi --no-color               # 禁用彩色输出
@@ -204,22 +220,28 @@ zhi --no-color               # 禁用彩色输出
 | 命令 | 说明 |
 |------|------|
 | `/help` | 显示帮助信息 |
-| `/auto` | 切换到自动模式（安全工具不再弹出确认） |
+| `/auto` | 跳过工具确认，加快执行速度（Shell 命令仍需确认） |
 | `/approve` | 切换到审批模式（默认，风险操作需确认） |
 | `/model <name>` | 切换模型（glm-5, glm-4-flash, glm-4-air） |
 | `/think` | 启用思考模式（仅 glm-5） |
 | `/fast` | 关闭思考模式 |
 | `/run <skill> [args]` | 运行技能 |
 | `/skill list` | 列出已安装技能 |
-| `/skill new` | 创建新技能 |
-| `/skill show <name>` | 查看技能详情 |
-| `/skill edit <name>` | 编辑技能 |
-| `/skill delete <name>` | 删除技能（仅删除 YAML 文件） |
+| `/status` | 显示当前会话状态（模型、模式、用量） |
 | `/reset` | 清空对话历史 |
 | `/undo` | 撤销上一轮对话 |
 | `/usage` | 查看 Token 用量和费用 |
 | `/verbose` | 切换详细输出 |
 | `/exit` | 退出 |
+
+## 交互式功能
+
+| 功能 | 说明 |
+|------|------|
+| Tab 补全 | 按 Tab 补全命令、模型名和技能名 |
+| 历史记录 | 上/下箭头回顾历史输入（跨会话持久化） |
+| 多行输入 | 行末加 `\` 可换行继续输入 |
+| 快捷键 | Ctrl+C 取消当前输入，Ctrl+D 退出 |
 
 ## 内置工具
 
@@ -238,6 +260,10 @@ zhi --no-color               # 禁用彩色输出
 ## 技能系统
 
 技能（Skill）是可复用的 AI 工作流，以 YAML 文件定义。默认使用 `glm-4-flash` 模型，成本低廉。
+
+> 技能支持两种调用方式：
+> - **Shell**：`zhi run summarize report.pdf`（执行完毕后退出）
+> - **REPL**：`/run summarize report.pdf`（在交互式会话中执行）
 
 **基础技能**（9 个）：
 
@@ -346,6 +372,53 @@ output:
 | `ZHI_OUTPUT_DIR` | 文件输出目录 | `zhi-output` |
 | `ZHI_LOG_LEVEL` | 日志级别 | `INFO` |
 | `NO_COLOR` | 禁用彩色输出（任意值） | — |
+
+## 推荐工具 / Recommended Tools
+
+以下工具可以显著提升你的终端 AI 体验：
+
+### 终端模拟器
+
+| 工具 | 平台 | 说明 |
+|------|------|------|
+| [iTerm2](https://iterm2.com/) | macOS | 功能强大的终端，支持分屏、搜索、图片预览 |
+| [Warp](https://www.warp.dev/) | macOS / Linux | 现代化 AI 终端，内置命令补全和历史搜索 |
+| [Windows Terminal](https://aka.ms/terminal) | Windows | 微软官方终端，支持多标签和 GPU 加速渲染 |
+| [Alacritty](https://alacritty.org/) | 跨平台 | 基于 GPU 加速的极速终端 |
+
+### 字体
+
+| 字体 | 说明 |
+|------|------|
+| [Nerd Fonts](https://www.nerdfonts.com/) | 含图标的编程字体集合，推荐 `FiraCode Nerd Font` 或 `JetBrainsMono Nerd Font` |
+| [Cascadia Code](https://github.com/microsoft/cascadia-code) | 微软出品，支持连字的等宽编程字体 |
+
+### 命令行增强
+
+| 工具 | 说明 |
+|------|------|
+| [fzf](https://github.com/junegunn/fzf) | 模糊搜索工具，快速查找文件和历史命令 |
+| [bat](https://github.com/sharkdp/bat) | 带语法高亮的 `cat` 替代品，查看文件更清晰 |
+| [eza](https://github.com/eza-community/eza) | 现代化的 `ls` 替代品，支持图标和 Git 状态 |
+| [zoxide](https://github.com/ajeetdsouza/zoxide) | 智能 `cd` 替代品，记住你常去的目录 |
+| [ripgrep (rg)](https://github.com/BurntSushi/ripgrep) | 极速文本搜索工具，比 `grep` 快数倍 |
+| [tldr](https://github.com/tldr-pages/tldr) | 简化版 man 页面，快速查看命令用法 |
+
+### Shell 框架
+
+| 工具 | 说明 |
+|------|------|
+| [Oh My Zsh](https://ohmyz.sh/) | Zsh 配置框架，丰富的插件和主题生态 |
+| [Starship](https://starship.rs/) | 跨 Shell 的极速提示符，美观且信息丰富 |
+| [Fish Shell](https://fishshell.com/) | 开箱即用的智能 Shell，自带语法高亮和补全 |
+
+### Python 工具
+
+| 工具 | 说明 |
+|------|------|
+| [pipx](https://pipx.pypa.io/) | 在隔离环境中安装 Python CLI 工具，推荐用来安装 `zhicli` |
+| [uv](https://github.com/astral-sh/uv) | 极速 Python 包管理器，`pip` 的现代替代品 |
+| [pyenv](https://github.com/pyenv/pyenv) | Python 版本管理，轻松切换多个 Python 版本 |
 
 ## Development
 
