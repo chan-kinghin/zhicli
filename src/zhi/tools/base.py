@@ -3,7 +3,25 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Protocol, runtime_checkable
+
+
+@runtime_checkable
+class Registrable(Protocol):
+    """Minimal interface for objects that can live in a ToolRegistry.
+
+    Both BaseTool subclasses and SkillTool instances satisfy this protocol.
+    """
+
+    @property
+    def name(self) -> str: ...
+
+    @property
+    def risky(self) -> bool: ...
+
+    def execute(self, **kwargs: Any) -> str: ...
+
+    def to_function_schema(self) -> dict[str, Any]: ...
 
 
 class BaseTool(ABC):

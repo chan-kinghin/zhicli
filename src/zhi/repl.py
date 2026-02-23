@@ -246,15 +246,99 @@ class ReplSession:
         return msg
 
     def _handle_run(self, args: str = "") -> str:
-        """Run a skill."""
+        """Run a skill by name with optional file arguments."""
         if not args.strip():
             msg = "Usage: /run <skill> [files...]"
             self._ui.print(msg)
             return msg
-        # Skill execution will be implemented when skills module is ready
-        msg = f"Skill execution not yet implemented: {args}"
-        self._ui.print(msg)
-        return msg
+
+        from zhi.skills import discover_skills
+
+        parts = args.strip().split()
+        skill_name = parts[0]
+        files = parts[1:]
+
+        skills = discover_skills()
+        if skill_name not in skills:
+            available = ", ".join(sorted(skills.keys())) if skills else "(none)"
+            msg = f"Unknown skill '{skill_name}'. Available: {available}"
+            self._ui.print(msg)
+            return msg
+
+        skill = skills[skill_name]
+
+        user_content = f"Run the '{skill_name}' skill."
+        if files:
+            file_list = ", ".join(files)
+            user_content += f" Input files: {file_list}"
+
+        # Build a skill-scoped context from the current context's client
+        from zhi.tools import ToolRegistry, register_skill_tools
+
+        skill_registry = ToolRegistry()
+        # Register base tools the skill needs
+        for tool_name in skill.tools:
+            existing = self._context.tools.get(tool_name)
+            if existing is not None:
+                skill_registry.register(existing)
+
+        # Also register skill-tools for composition
+        register_skill_tools(skill_registry, skills, self._context.client)
+
+        skill_tools = skill_registry.filter_by_names(skill.tools)
+        # Also include skill_ prefixed versions
+        for t_name in skill.tools:
+            prefixed = f"skill_{t_name}"
+            st = skill_registry.get(prefixed)
+            if st is not None:
+                skill_tools[prefixed] = st
+
+        skill_schemas = [t.to_function_schema() for t in skill_tools.values()]
+
+        conversation: list[dict[str, Any]] = []
+        if skill.system_prompt:
+            conversation.append(
+                {
+                    "role": Role.SYSTEM.value,
+                    "content": skill.system_prompt,
+                }
+            )
+        conversation.append({"role": Role.USER.value, "content": user_content})
+
+        skill_context = Context(
+            config=self._context.config,
+            client=self._context.client,
+            model=skill.model,
+            tools=skill_tools,
+            tool_schemas=skill_schemas,
+            permission_mode=self._context.permission_mode,
+            conversation=conversation,
+            max_turns=skill.max_turns,
+            on_stream=self._ui.stream,
+            on_thinking=self._ui.show_thinking,
+            on_tool_start=self._ui.show_tool_start,
+            on_tool_end=self._ui.show_tool_end,
+            on_permission=lambda tool, call: self._ui.ask_permission(tool.name, {}),
+        )
+
+        try:
+            result = agent_run(skill_context)
+        except KeyboardInterrupt:
+            self._ui.print("\nInterrupted")
+            return "Interrupted"
+        except Exception as e:
+            logger.exception("Skill run error")
+            msg = f"Error running skill '{skill_name}': {e}"
+            self._ui.print(msg)
+            return msg
+
+        if result is None:
+            msg = f"Skill '{skill_name}' reached max turns without a final response."
+            self._ui.show_warning(msg)
+            return msg
+
+        self._ui.stream_end()
+        return result
 
     def _handle_skill(self, args: str = "") -> str:
         """Handle /skill subcommands."""
@@ -262,7 +346,18 @@ class ReplSession:
         subcommand = parts[0] if parts else ""
 
         if subcommand == "list":
-            msg = "No skills installed. Create one with /skill new"
+            from zhi.skills import discover_skills
+
+            skills = discover_skills()
+            if not skills:
+                msg = "No skills installed. Create one with /skill new"
+                self._ui.print(msg)
+                return msg
+            lines = ["Available skills:"]
+            for name, cfg in sorted(skills.items()):
+                source_tag = f" ({cfg.source})" if cfg.source else ""
+                lines.append(f"  {name}{source_tag} — {cfg.description}")
+            msg = "\n".join(lines)
             self._ui.print(msg)
             return msg
         elif subcommand == "new":

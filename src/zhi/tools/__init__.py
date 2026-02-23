@@ -2,28 +2,36 @@
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 
-from zhi.tools.base import BaseTool
+from zhi.tools.base import BaseTool as BaseTool
+from zhi.tools.base import Registrable
+
+logger = logging.getLogger(__name__)
 
 
 class ToolRegistry:
-    """Registry for managing tool instances."""
+    """Registry for managing tool instances.
+
+    Accepts any object satisfying the Registrable protocol —
+    both BaseTool subclasses and SkillTool wrappers.
+    """
 
     def __init__(self) -> None:
-        self._tools: dict[str, BaseTool] = {}
+        self._tools: dict[str, Registrable] = {}
 
-    def register(self, tool: BaseTool) -> None:
+    def register(self, tool: Registrable) -> None:
         """Register a tool. Raises ValueError on duplicate names."""
         if tool.name in self._tools:
             raise ValueError(f"Tool '{tool.name}' is already registered.")
         self._tools[tool.name] = tool
 
-    def get(self, name: str) -> BaseTool | None:
+    def get(self, name: str) -> Registrable | None:
         """Get a tool by name. Returns None if not found."""
         return self._tools.get(name)
 
-    def list_tools(self) -> list[BaseTool]:
+    def list_tools(self) -> list[Registrable]:
         """List all registered tools."""
         return list(self._tools.values())
 
@@ -31,7 +39,7 @@ class ToolRegistry:
         """List all registered tool names."""
         return list(self._tools.keys())
 
-    def filter_by_names(self, names: list[str]) -> dict[str, BaseTool]:
+    def filter_by_names(self, names: list[str]) -> dict[str, Registrable]:
         """Filter tools by a list of names. Returns matching tools."""
         return {name: self._tools[name] for name in names if name in self._tools}
 
@@ -66,3 +74,31 @@ def create_default_registry() -> ToolRegistry:
     registry.register(FileListTool())
     registry.register(WebFetchTool())
     return registry
+
+
+def register_skill_tools(
+    registry: ToolRegistry,
+    skills: dict[str, Any],
+    client: Any,
+) -> None:
+    """Wrap each discovered SkillConfig as a SkillTool and register it.
+
+    Skills become tools named ``skill_<name>`` in the registry,
+    enabling the agent to call them during interactive chat.
+
+    Args:
+        registry: The tool registry to populate.
+        skills: Dict mapping skill name to SkillConfig.
+        client: The Zhipu API client (passed to nested agent loops).
+    """
+    from zhi.tools.skill_tool import SkillTool
+
+    for _name, skill_config in skills.items():
+        tool = SkillTool(skill=skill_config, client=client, registry=registry)
+        try:
+            registry.register(tool)
+        except ValueError:
+            logger.warning(
+                "Skill tool '%s' collides with existing tool, skipping",
+                tool.name,
+            )

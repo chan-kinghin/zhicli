@@ -90,10 +90,15 @@ def _build_context(
     """Build an agent Context from config and options."""
     from zhi.agent import Context, PermissionMode
     from zhi.client import Client
-    from zhi.tools import create_default_registry
+    from zhi.skills import discover_skills
+    from zhi.tools import create_default_registry, register_skill_tools
 
     client = Client(api_key=config.api_key)
     registry = create_default_registry()
+
+    # Register discovered skills as callable tools
+    skills = discover_skills()
+    register_skill_tools(registry, skills, client)
 
     if tool_names is not None:
         tools = registry.filter_by_names(tool_names)
