@@ -100,7 +100,9 @@ class ReplSession:
     def run(self) -> None:
         """Run the REPL loop until /exit or Ctrl+D."""
         self._running = True
-        self._ui.print("Welcome to zhi. Type /help for commands.")
+        from zhi import __version__
+
+        self._ui.show_banner(__version__)
 
         while self._running:
             try:

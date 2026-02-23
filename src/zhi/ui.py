@@ -220,6 +220,31 @@ class UI:
         text.append(f" tokens (~${cost:.4f})", style="dim")
         self._console.print(text)
 
+    def show_banner(self, version: str) -> None:
+        """Display the startup banner with pixel-art-inspired logo."""
+        if self._no_color:
+            print(f"\n  zhi v{version}")
+            print("  Terminal AI powered by Zhipu GLM")
+            print("  Type /help for commands.\n")
+            return
+
+        c = self._console
+        c.print()
+        c.print("[dim]        · [bold yellow]☀[/bold yellow] ·[/dim]")
+        c.print("[orange1]      ╱[yellow]━━━━━[/yellow]╲[/orange1]")
+        c.print("[dark_orange3]    ╱[orange1]━━━━━━━━━[/orange1]╲[/dark_orange3]")
+        c.print(
+            "[steel_blue]  ╱╱╱[/steel_blue]  [bold]▐▌[/bold]  "
+            "[steel_blue]╲╲╲[/steel_blue]"
+            f"   [bold cyan]zhi[/bold cyan] [dim cyan]v{version}[/dim cyan]"
+        )
+        c.print(
+            "[dark_blue]  ▔▔▔▔▔▔▔▔▔▔▔▔▔[/dark_blue]"
+            "   [dim]Terminal AI · Zhipu GLM[/dim]"
+        )
+        c.print("[dim]                  Type /help for commands.[/dim]")
+        c.print()
+
     def print(self, message: str) -> None:
         """Print a plain message."""
         if self._no_color:
