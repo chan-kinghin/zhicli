@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
@@ -60,16 +61,6 @@ class ClientLike(Protocol):
 
 
 @dataclass
-class ChatResponse:
-    """Parsed chat completion response used by the agent loop."""
-
-    content: str | None = None
-    tool_calls: list[dict[str, Any]] = field(default_factory=list)
-    thinking: str | None = None
-    total_tokens: int = 0
-
-
-@dataclass
 class Context:
     """Request-scoped state for the agent loop."""
 
@@ -84,11 +75,11 @@ class Context:
     max_turns: int = 30
     thinking_enabled: bool = True
     # Callbacks
-    on_stream: Any | None = None  # Callable[[str], None]
-    on_thinking: Any | None = None  # Callable[[str], None]
-    on_tool_start: Any | None = None  # Callable[[str, dict], None]
-    on_tool_end: Any | None = None  # Callable[[str, str], None]
-    on_permission: Any | None = None  # Callable[[ToolLike, dict], bool]
+    on_stream: Callable[[str], None] | None = None
+    on_thinking: Callable[[str], None] | None = None
+    on_tool_start: Callable[[str, dict[str, Any]], None] | None = None
+    on_tool_end: Callable[[str, str], None] | None = None
+    on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None
 
 
 class AgentInterruptedError(Exception):

@@ -12,6 +12,8 @@ from typing import Any
 
 from zhipuai import ZhipuAI
 
+from zhi.errors import ApiError
+
 logger = logging.getLogger(__name__)
 
 _MAX_OCR_FILE_SIZE = 20 * 1024 * 1024  # 20MB
@@ -42,8 +44,12 @@ class ChatChunk:
     usage: dict[str, int] | None = None
 
 
-class ClientError(Exception):
-    """Base error for client operations."""
+class ClientError(ApiError):
+    """Base error for client operations.
+
+    Inherits from ApiError so callers catching ZhiError/ApiError
+    also catch client-level errors.
+    """
 
     def __init__(
         self,
@@ -51,8 +57,7 @@ class ClientError(Exception):
         code: str = "CLIENT_ERROR",
         retryable: bool = False,
     ) -> None:
-        super().__init__(message)
-        self.code = code
+        super().__init__(message, code=code)
         self.retryable = retryable
 
 

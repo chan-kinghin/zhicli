@@ -155,7 +155,7 @@ ERROR_CATALOG: dict[str, ZhiError] = {
         suggestions=[
             "Check your internet connection",
             "Verify API status at status.bigmodel.cn",
-            "Run `zhi config show` to confirm your API key",
+            "Run `zhi --setup` to reconfigure your API key",
         ],
         log_details="Connection timed out after 30s",
     ),

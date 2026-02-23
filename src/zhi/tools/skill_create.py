@@ -2,16 +2,13 @@
 
 from __future__ import annotations
 
-import re
 from pathlib import Path
 from typing import Any, ClassVar
 
 import yaml
 
+from zhi.skills.loader import MAX_SKILL_NAME_LENGTH, SKILL_NAME_PATTERN
 from zhi.tools.base import BaseTool
-
-_SKILL_NAME_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9_-]*$")
-_MAX_SKILL_NAME_LENGTH = 64
 
 
 class SkillCreateTool(BaseTool):
@@ -87,14 +84,14 @@ class SkillCreateTool(BaseTool):
         if not skill_name:
             return "Error: 'name' parameter is required."
 
-        if len(skill_name) > _MAX_SKILL_NAME_LENGTH:
+        if len(skill_name) > MAX_SKILL_NAME_LENGTH:
             return (
                 f"Error: Skill name too long "
                 f"({len(skill_name)} chars). "
-                f"Maximum: {_MAX_SKILL_NAME_LENGTH}."
+                f"Maximum: {MAX_SKILL_NAME_LENGTH}."
             )
 
-        if not _SKILL_NAME_PATTERN.match(skill_name):
+        if not SKILL_NAME_PATTERN.match(skill_name):
             return (
                 f"Error: Invalid skill name '{skill_name}'. "
                 "Must start with alphanumeric and contain "
