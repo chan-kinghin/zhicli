@@ -1,0 +1,18 @@
+name: test-skill
+description: A test skill for unit testing
+model: glm-4-flash
+system_prompt: |
+  You are a test assistant.
+tools:
+  - file_read
+  - file_write
+max_turns: 10
+input:
+  description: A test input
+  args:
+    - name: file
+      type: file
+      required: true
+output:
+  description: Test output
+  directory: zhi-output

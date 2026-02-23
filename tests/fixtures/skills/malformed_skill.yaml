@@ -1,0 +1,5 @@
+name: bad-yaml
+description: This YAML is malformed
+  tools:
+  - file_read
+  indentation: [broken

@@ -1,0 +1,7 @@
+name: extra-fields
+description: Skill with unknown extra fields
+system_prompt: You are an assistant.
+tools:
+  - file_read
+unknown_field: some value
+another_extra: 42

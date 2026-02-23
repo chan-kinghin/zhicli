@@ -1,0 +1,27 @@
+name: translate
+description: Translate text between languages
+model: glm-4-flash
+system_prompt: |
+  You are a professional translator. Translate the provided text accurately while
+  preserving meaning, tone, and formatting. If no target language is specified,
+  translate to Chinese (Simplified).
+tools:
+  - file_read
+  - file_write
+max_turns: 5
+input:
+  description: Text or file to translate
+  args:
+    - name: file
+      type: file
+      required: false
+    - name: text
+      type: string
+      required: false
+    - name: to
+      type: string
+      required: false
+      default: chinese
+output:
+  description: Translated text
+  directory: zhi-output

@@ -1,0 +1,20 @@
+{
+  "id": "test-completion-001",
+  "created": 1700000000,
+  "model": "glm-4-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "stop",
+      "message": {
+        "role": "assistant",
+        "content": "This is a test response from the GLM model."
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 50,
+    "completion_tokens": 12,
+    "total_tokens": 62
+  }
+}

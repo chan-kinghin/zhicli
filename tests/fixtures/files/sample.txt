@@ -1,0 +1,13 @@
+This is a sample text file for testing zhi CLI tools.
+
+It contains multiple paragraphs that can be used to test file reading,
+summarization, and translation features.
+
+The zhi CLI is an agentic assistant powered by Zhipu GLM models. It supports
+interactive chat, custom skills, and various file processing capabilities.
+
+Key features:
+- Interactive REPL with slash commands
+- Custom skill creation and execution
+- File reading, writing, and OCR
+- Two-model architecture for cost optimization

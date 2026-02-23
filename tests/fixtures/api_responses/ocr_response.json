@@ -1,0 +1,11 @@
+{
+  "id": "test-ocr-001",
+  "task_status": "COMPLETED",
+  "content": {
+    "text": "Invoice #12345\n\nDate: 2024-01-15\nVendor: Acme Corp\n\nItem          Qty   Price\n-----------   ---   -----\nWidget A       10   $5.00\nWidget B        5  $10.00\nWidget C        2  $25.00\n\nSubtotal: $150.00\nTax (10%):  $15.00\nTotal:     $165.00",
+    "pages": 1
+  },
+  "usage": {
+    "total_tokens": 200
+  }
+}

@@ -1,0 +1,20 @@
+name: summarize
+description: Summarize a text file or document
+model: glm-4-flash
+system_prompt: |
+  You are a concise summarization assistant. Read the provided text and produce a clear,
+  well-structured summary. Include key points, main arguments, and important details.
+  Output the summary as markdown.
+tools:
+  - file_read
+  - file_write
+max_turns: 5
+input:
+  description: A text file to summarize
+  args:
+    - name: file
+      type: file
+      required: true
+output:
+  description: Markdown summary
+  directory: zhi-output

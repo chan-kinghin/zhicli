@@ -1,0 +1,79 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "zhi"
+version = "0.1.0"
+description = "Agentic CLI powered by Zhipu GLM models"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.10"
+authors = [{ name = "zhi contributors" }]
+keywords = ["cli", "ai", "zhipu", "glm", "agent"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+dependencies = [
+    "zhipuai>=2.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "prompt-toolkit>=3.0",
+    "platformdirs>=4.0",
+    "httpx>=0.25",
+]
+
+[project.optional-dependencies]
+excel = ["openpyxl>=3.1"]
+word = ["python-docx>=1.0"]
+all = ["openpyxl>=3.1", "python-docx>=1.0"]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+    "pytest-mock>=3.0",
+    "ruff>=0.4",
+    "mypy>=1.8",
+]
+
+[project.scripts]
+zhi = "zhi.cli:main"
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["zhi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "unit: Unit tests (fast, no external deps)",
+    "integration: Integration tests (mock API only)",
+    "e2e: End-to-end tests (full workflow)",
+    "slow: Tests that take >5 seconds",
+    "xplat: Cross-platform specific tests",
+]
+
+[tool.coverage.run]
+source = ["zhi"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+fail_under = 80
+show_missing = true
+
+[tool.mypy]
+python_version = "3.10"
+strict = true
+warn_return_any = true
+warn_unused_configs = true

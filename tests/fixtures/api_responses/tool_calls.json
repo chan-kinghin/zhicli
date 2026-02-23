@@ -1,0 +1,30 @@
+{
+  "id": "test-tool-call-001",
+  "created": 1700000000,
+  "model": "glm-4-flash",
+  "choices": [
+    {
+      "index": 0,
+      "finish_reason": "tool_calls",
+      "message": {
+        "role": "assistant",
+        "content": null,
+        "tool_calls": [
+          {
+            "id": "call_abc123",
+            "type": "function",
+            "function": {
+              "name": "file_read",
+              "arguments": "{\"path\": \"sample.txt\"}"
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "usage": {
+    "prompt_tokens": 100,
+    "completion_tokens": 25,
+    "total_tokens": 125
+  }
+}

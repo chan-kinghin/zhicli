@@ -1,0 +1,5 @@
+name: minimal
+description: A minimal skill with only required fields
+system_prompt: You are a minimal assistant.
+tools:
+  - file_read
