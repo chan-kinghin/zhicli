@@ -11,6 +11,7 @@ license = "MIT"
 requires-python = ">=3.10"
 authors = [{ name = "zhi contributors" }]
 keywords = ["cli", "ai", "zhipu", "glm", "agent"]
+
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Environment :: Console",
@@ -28,6 +29,11 @@ dependencies = [
     "platformdirs>=4.0",
     "httpx>=0.25",
 ]
+
+[project.urls]
+Homepage = "https://github.com/chan-kinghin/zhicli"
+Repository = "https://github.com/chan-kinghin/zhicli"
+Issues = "https://github.com/chan-kinghin/zhicli/issues"
 
 [project.optional-dependencies]
 excel = ["openpyxl>=3.1"]

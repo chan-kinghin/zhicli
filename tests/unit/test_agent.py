@@ -7,17 +7,12 @@ from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock
 
-import pytest
-
 from zhi.agent import (
-    ChatResponse,
     Context,
     PermissionMode,
-    Role,
     run,
 )
 from zhi.config import ZhiConfig
-
 
 # --- Test helpers ---
 

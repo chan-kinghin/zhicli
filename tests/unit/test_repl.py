@@ -4,14 +4,11 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
-import pytest
-
-from zhi.agent import Context, PermissionMode, Role
+from zhi.agent import Context, PermissionMode
 from zhi.config import ZhiConfig
 from zhi.ui import UI
-
 
 # --- Test helpers ---
 
@@ -40,7 +37,7 @@ def _make_context(
 def _make_repl(
     context: Context | None = None,
     tmp_path: Path | None = None,
-) -> "ReplSession":
+) -> Any:
     """Create a ReplSession for testing."""
     from zhi.repl import ReplSession
 
@@ -255,7 +252,6 @@ class TestReplSkill:
 class TestReplChat:
     def test_repl_regular_text(self, tmp_path: Path) -> None:
         """Regular text is sent to the agent."""
-        from zhi.agent import ChatResponse
 
         ctx = _make_context()
         repl = _make_repl(context=ctx, tmp_path=tmp_path)
@@ -268,7 +264,7 @@ class TestReplChat:
         mock_response.total_tokens = 50
         ctx.client.chat.return_value = mock_response
 
-        result = repl.handle_input("Hello there")
+        repl.handle_input("Hello there")
 
         # Should have added user message to conversation
         user_msgs = [m for m in ctx.conversation if m["role"] == "user"]

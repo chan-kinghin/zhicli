@@ -9,6 +9,9 @@ import argparse
 import logging
 import os
 import sys
+from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -74,6 +77,122 @@ def _setup_logging(debug: bool = False) -> None:
     )
 
 
+def _build_context(
+    config: Any,
+    ui: Any,
+    *,
+    model: str | None = None,
+    tool_names: list[str] | None = None,
+    system_prompt: str | None = None,
+    user_message: str | None = None,
+    max_turns: int | None = None,
+) -> Any:
+    """Build an agent Context from config and options."""
+    from zhi.agent import Context, PermissionMode
+    from zhi.client import Client
+    from zhi.tools import create_default_registry
+
+    client = Client(api_key=config.api_key)
+    registry = create_default_registry()
+
+    if tool_names is not None:
+        tools = registry.filter_by_names(tool_names)
+        tool_schemas = registry.to_schemas_filtered(tool_names)
+    else:
+        tools = {t.name: t for t in registry.list_tools()}
+        tool_schemas = registry.to_schemas()
+
+    conversation: list[dict[str, Any]] = []
+    if system_prompt:
+        conversation.append({"role": "system", "content": system_prompt})
+    if user_message:
+        conversation.append({"role": "user", "content": user_message})
+
+    return Context(
+        config=config,
+        client=client,
+        model=model or config.default_model,
+        tools=tools,
+        tool_schemas=tool_schemas,
+        permission_mode=PermissionMode.APPROVE,
+        conversation=conversation,
+        max_turns=max_turns or config.max_turns,
+        on_stream=ui.stream,
+        on_thinking=ui.show_thinking,
+        on_tool_start=ui.show_tool_start,
+        on_tool_end=ui.show_tool_end,
+        on_permission=lambda tool, call: ui.ask_permission(tool.name, {}),
+    )
+
+
+def _require_api_key(config: Any) -> bool:
+    """Check API key and print error if missing. Returns True if key exists."""
+    if not config.has_api_key:
+        print("Error: No API key configured. Run `zhi --setup` first.")
+        return False
+    return True
+
+
+def _run_oneshot(config: Any, ui: Any, message: str) -> None:
+    """Run a single message through the agent and exit."""
+    from zhi.agent import run as agent_run
+
+    context = _build_context(config, ui, user_message=message)
+    result = agent_run(context)
+    if result:
+        ui.stream_end()
+
+
+def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
+    """Run a skill by name with optional input files."""
+    from zhi.agent import run as agent_run
+    from zhi.skills import discover_skills
+
+    skills = discover_skills()
+    if skill_name not in skills:
+        available = ", ".join(sorted(skills.keys())) if skills else "(none)"
+        print(f"Error: Unknown skill '{skill_name}'. Available: {available}")
+        sys.exit(1)
+
+    skill = skills[skill_name]
+
+    user_content = f"Run the '{skill_name}' skill."
+    if files:
+        file_list = ", ".join(files)
+        user_content += f" Input files: {file_list}"
+
+    context = _build_context(
+        config,
+        ui,
+        model=skill.model,
+        tool_names=skill.tools,
+        system_prompt=skill.system_prompt,
+        user_message=user_content,
+        max_turns=skill.max_turns,
+    )
+    result = agent_run(context)
+    if result:
+        ui.stream_end()
+
+
+def _run_pipe(config: Any, ui: Any) -> None:
+    """Read stdin and run through the agent."""
+    stdin_text = sys.stdin.read().strip()
+    if not stdin_text:
+        print("Error: No input received from stdin.")
+        sys.exit(1)
+    _run_oneshot(config, ui, stdin_text)
+
+
+def _run_repl(config: Any, ui: Any) -> None:
+    """Launch the interactive REPL."""
+    from zhi.repl import ReplSession
+
+    context = _build_context(config, ui)
+    session = ReplSession(context=context, ui=ui)
+    session.run()
+
+
 def main(argv: list[str] | None = None) -> None:
     """Main entry point for the zhi CLI."""
     parser = _build_parser()
@@ -100,32 +219,39 @@ def main(argv: list[str] | None = None) -> None:
         run_wizard()
         return
 
+    # Load config for all remaining modes
+    from zhi.config import load_config
+    from zhi.ui import UI
+
+    config = load_config()
+    ui = UI(no_color=bool(os.environ.get("NO_COLOR")))
+
     # Handle 'run' subcommand
     if args.subcommand == "run":
-        print(f"Skill run not yet implemented: {args.skill}")
+        if not _require_api_key(config):
+            sys.exit(1)
+        _run_skill(config, ui, args.skill, args.files)
         return
 
     # Handle one-shot mode (-c)
     if args.command:
-        print(f"One-shot mode not yet implemented: {args.command}")
+        if not _require_api_key(config):
+            sys.exit(1)
+        _run_oneshot(config, ui, args.command)
         return
 
     # Detect pipe mode
-    is_interactive = sys.stdin.isatty()
-
-    if not is_interactive:
-        # Pipe mode: read stdin and process
-        print("Pipe mode not yet implemented.")
+    if not sys.stdin.isatty():
+        if not _require_api_key(config):
+            sys.exit(1)
+        _run_pipe(config, ui)
         return
 
     # Default: launch REPL
-    from zhi.config import load_config
-
-    config = load_config()
     if not config.has_api_key:
         from zhi.config import run_wizard
 
         run_wizard()
         return
 
-    print("REPL not yet implemented. Run `zhi --setup` to configure.")
+    _run_repl(config, ui)

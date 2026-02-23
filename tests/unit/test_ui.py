@@ -3,13 +3,16 @@
 from __future__ import annotations
 
 import io
+from typing import Any
 from unittest.mock import patch
+
+import pytest
 
 
 class TestUINoColor:
     """Test UI in no-color mode (plain text output)."""
 
-    def _make_ui(self) -> "UI":
+    def _make_ui(self) -> Any:
         from zhi.ui import UI
 
         return UI(no_color=True)
@@ -145,7 +148,7 @@ class TestUINoColor:
 class TestUIRich:
     """Test UI with Rich output (default mode)."""
 
-    def _make_ui(self) -> "UI":
+    def _make_ui(self) -> Any:
         from zhi.ui import UI
 
         return UI(no_color=False)
@@ -197,16 +200,14 @@ class TestUIRich:
 class TestUINoColorEnv:
     """Test NO_COLOR env var detection."""
 
-    def test_no_color_env(self, monkeypatch: "pytest.MonkeyPatch") -> None:
-        import pytest
+    def test_no_color_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
 
         monkeypatch.setenv("NO_COLOR", "1")
         from zhi.ui import _no_color
 
         assert _no_color() is True
 
-    def test_color_env_unset(self, monkeypatch: "pytest.MonkeyPatch") -> None:
-        import pytest
+    def test_color_env_unset(self, monkeypatch: pytest.MonkeyPatch) -> None:
 
         monkeypatch.delenv("NO_COLOR", raising=False)
         from zhi.ui import _no_color

@@ -14,11 +14,9 @@ import pytest
 
 from zhi.client import (
     AuthenticationError,
-    ChatChunk,
     ChatResponse,
     Client,
     ClientError,
-    RateLimitError,
     ServerError,
 )
 

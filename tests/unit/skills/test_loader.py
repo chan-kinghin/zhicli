@@ -10,7 +10,6 @@ from zhi.errors import SkillError
 from zhi.skills.loader import (
     MAX_SKILL_NAME_LENGTH,
     SKILL_NAME_PATTERN,
-    SkillConfig,
     load_skill,
     validate_skill_name,
 )
