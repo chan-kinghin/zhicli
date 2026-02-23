@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -102,17 +103,29 @@ class ShellTool(BaseTool):
         # Clamp timeout
         timeout = max(1, min(timeout, 300))
 
-        # Check blocklist
-        cmd_lower = command.lower().strip()
+        # Normalize: collapse whitespace, strip, lowercase
+        cmd_normalized = re.sub(r"\s+", " ", command.lower().strip())
+
+        # Check blocklist against normalized form
         for blocked in _BLOCKED_PATTERNS:
-            if blocked in cmd_lower:
+            if blocked in cmd_normalized:
                 return (
                     f"Error: Command blocked for safety. "
                     f"Pattern '{blocked}' is not allowed."
                 )
 
-        # Check for destructive commands
-        is_destructive = any(pat in cmd_lower for pat in _DESTRUCTIVE_PATTERNS)
+        # Also block common bypass patterns
+        if re.search(
+            r"\beval\b|\bbash\s+-c\b|\bsh\s+-c\b|/bin/rm\b|/usr/bin/rm\b",
+            cmd_normalized,
+        ):
+            return (
+                "Error: Command blocked for safety. "
+                "Indirect execution patterns are not allowed."
+            )
+
+        # Check for destructive commands (against normalized form)
+        is_destructive = any(pat in cmd_normalized for pat in _DESTRUCTIVE_PATTERNS)
 
         # Always require confirmation, regardless of mode
         if self._permission_callback is None:

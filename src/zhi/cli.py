@@ -17,6 +17,18 @@ from zhi.i18n import prepend_preamble, set_language, t
 logger = logging.getLogger(__name__)
 
 
+def _safe_parse_args(raw_args: Any) -> dict[str, Any]:
+    """Safely parse tool call arguments, returning empty dict on failure."""
+    if isinstance(raw_args, dict):
+        return raw_args
+    if isinstance(raw_args, str):
+        try:
+            return json.loads(raw_args)
+        except (json.JSONDecodeError, ValueError):
+            return {"_raw": raw_args}
+    return {}
+
+
 def _build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
     parser = argparse.ArgumentParser(
@@ -102,9 +114,17 @@ def _build_context(
     from zhi.client import Client
     from zhi.skills import discover_skills
     from zhi.tools import create_default_registry, register_skill_tools
+    from zhi.tools.ocr import OcrTool
+    from zhi.tools.shell import ShellTool
 
     client = Client(api_key=config.api_key)
     registry = create_default_registry()
+
+    # Register tools that need runtime dependencies.
+    # ShellTool's own callback auto-approves because the agent loop already
+    # gates risky tools through on_permission (no double prompting).
+    registry.register(OcrTool(client=client))
+    registry.register(ShellTool(permission_callback=lambda _cmd, _destructive: True))
 
     # Register discovered skills as callable tools
     skills = discover_skills()
@@ -138,9 +158,7 @@ def _build_context(
         on_tool_end=ui.show_tool_end,
         on_permission=lambda tool, call: ui.ask_permission(
             tool.name,
-            json.loads(call["function"]["arguments"])
-            if isinstance(call["function"]["arguments"], str)
-            else call["function"]["arguments"],
+            _safe_parse_args(call["function"]["arguments"]),
         ),
         on_waiting=ui.show_waiting,
     )

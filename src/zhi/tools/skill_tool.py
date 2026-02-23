@@ -37,12 +37,14 @@ class SkillTool:
         *,
         call_stack: frozenset[str] = frozenset(),
         depth: int = 0,
+        permission_mode: PermissionMode = PermissionMode.APPROVE,
     ) -> None:
         self._skill = skill
         self._client = client
         self._registry = registry
         self._call_stack = call_stack
         self._depth = depth
+        self._permission_mode = permission_mode
 
     # -- Registrable protocol --------------------------------------------------
 
@@ -141,13 +143,14 @@ class SkillTool:
 
             existing = self._registry.get(resolved_name)
             if existing is not None and isinstance(existing, SkillTool):
-                # Re-wrap with updated call stack and depth
+                # Re-wrap with updated call stack, depth, and permission mode
                 child = SkillTool(
                     skill=existing._skill,
                     client=self._client,
                     registry=self._registry,
                     call_stack=new_call_stack,
                     depth=new_depth,
+                    permission_mode=self._permission_mode,
                 )
                 inner_tools[child.name] = child
                 inner_schemas.append(child.to_function_schema())
@@ -183,7 +186,7 @@ class SkillTool:
             model=self._skill.model,
             tools=inner_tools,
             tool_schemas=inner_schemas,
-            permission_mode=PermissionMode.AUTO,
+            permission_mode=self._permission_mode,
             conversation=conversation,
             max_turns=self._skill.max_turns,
             thinking_enabled=False,

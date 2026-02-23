@@ -3,13 +3,41 @@
 from __future__ import annotations
 
 import html
+import ipaddress
 import re
 from typing import Any, ClassVar
+from urllib.parse import urlparse
 
 from zhi.tools.base import BaseTool
 
 _MAX_CONTENT_SIZE = 50 * 1024  # 50KB
 _DEFAULT_TIMEOUT = 30
+_USER_AGENT = "zhi-cli/1.0"
+
+# Blocked hostnames for SSRF protection
+_BLOCKED_HOSTS = frozenset(
+    {
+        "localhost",
+        "metadata.google.internal",
+        "metadata",
+    }
+)
+
+
+def _is_private_or_reserved(hostname: str) -> bool:
+    """Check if a hostname resolves to a private/reserved IP address."""
+    # Block known dangerous hostnames
+    if hostname.lower() in _BLOCKED_HOSTS:
+        return True
+
+    # Check if the hostname is an IP address in a private/reserved range
+    try:
+        addr = ipaddress.ip_address(hostname)
+        return addr.is_private or addr.is_reserved or addr.is_loopback
+    except ValueError:
+        pass
+
+    return False
 
 
 def _strip_html_tags(html_content: str) -> str:
@@ -67,8 +95,22 @@ class WebFetchTool(BaseTool):
         if not url.startswith(("http://", "https://")):
             return "Error: Invalid URL. Must start with http:// or https://."
 
+        # SSRF protection: block private/internal addresses
         try:
-            response = httpx.get(url, timeout=_DEFAULT_TIMEOUT, follow_redirects=True)
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ""
+            if _is_private_or_reserved(hostname):
+                return "Error: Access to internal/private addresses is not allowed."
+        except ValueError:
+            return "Error: Could not parse URL."
+
+        try:
+            response = httpx.get(
+                url,
+                timeout=_DEFAULT_TIMEOUT,
+                follow_redirects=True,
+                headers={"User-Agent": _USER_AGENT},
+            )
         except httpx.TimeoutException:
             return f"Error: Request timed out after {_DEFAULT_TIMEOUT}s."
         except httpx.ConnectError:

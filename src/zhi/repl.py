@@ -9,6 +9,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import time
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +47,40 @@ _SLASH_COMMANDS = [
 ]
 
 _MAX_HISTORY_ENTRIES = 10_000
+_SKILLS_CACHE_TTL = 5.0  # seconds
+
+
+def _safe_parse_args(raw_args: Any) -> dict[str, Any]:
+    """Safely parse tool call arguments, returning empty dict on failure."""
+    if isinstance(raw_args, dict):
+        return raw_args
+    if isinstance(raw_args, str):
+        try:
+            return json.loads(raw_args)
+        except (json.JSONDecodeError, ValueError):
+            return {"_raw": raw_args}
+    return {}
+
+
+class _SkillsCache:
+    """Simple TTL cache for discover_skills() to avoid re-scanning on every call."""
+
+    def __init__(self, ttl: float = _SKILLS_CACHE_TTL) -> None:
+        self._ttl = ttl
+        self._cache: dict[str, Any] | None = None
+        self._last_fetch: float = 0.0
+
+    def get(self) -> dict[str, Any]:
+        now = time.monotonic()
+        if self._cache is None or (now - self._last_fetch) > self._ttl:
+            from zhi.skills import discover_skills
+
+            self._cache = discover_skills()
+            self._last_fetch = now
+        return self._cache
+
+    def invalidate(self) -> None:
+        self._cache = None
 
 
 class _FilteredFileHistory(FileHistory):
@@ -121,13 +156,13 @@ class ReplSession:
             logger.warning("Could not open history file, using in-memory history")
             self._history = InMemoryHistory()
 
-        # Set up tab completion
-        from zhi.skills import discover_skills
+        # Set up skills cache and tab completion
+        self._skills_cache = _SkillsCache()
 
         self._completer = _ZhiCompleter(
             commands=list(_SLASH_COMMANDS),
             models=list(MODELS.keys()),
-            skills_fn=lambda: list(discover_skills().keys()),
+            skills_fn=lambda: list(self._skills_cache.get().keys()),
         )
 
         self._session: PromptSession[str] = PromptSession(
@@ -307,13 +342,11 @@ class ReplSession:
             self._ui.print(msg)
             return msg
 
-        from zhi.skills import discover_skills
-
         parts = args.strip().split()
         skill_name = parts[0]
         files = parts[1:]
 
-        skills = discover_skills()
+        skills = self._skills_cache.get()
         if skill_name not in skills:
             available = ", ".join(sorted(skills.keys())) if skills else "(none)"
             msg = t("repl.unknown_skill", skill=skill_name, available=available)
@@ -375,9 +408,7 @@ class ReplSession:
             on_tool_end=self._ui.show_tool_end,
             on_permission=lambda tool, call: self._ui.ask_permission(
                 tool.name,
-                json.loads(call["function"]["arguments"])
-                if isinstance(call["function"]["arguments"], str)
-                else call["function"]["arguments"],
+                _safe_parse_args(call["function"]["arguments"]),
             ),
             on_waiting=self._ui.show_waiting,
         )
@@ -407,9 +438,7 @@ class ReplSession:
         subcommand = parts[0] if parts else ""
 
         if subcommand == "list":
-            from zhi.skills import discover_skills
-
-            skills = discover_skills()
+            skills = self._skills_cache.get()
             if not skills:
                 msg = t("repl.no_skills")
                 self._ui.print(msg)
@@ -431,9 +460,7 @@ class ReplSession:
                 msg = t("repl.skill_show_usage")
                 self._ui.print(msg)
                 return msg
-            from zhi.skills import discover_skills
-
-            skills = discover_skills()
+            skills = self._skills_cache.get()
             if name not in skills:
                 msg = t("repl.skill_not_found", name=name)
                 self._ui.print(msg)
@@ -456,9 +483,7 @@ class ReplSession:
                 msg = t("repl.skill_edit_usage")
                 self._ui.print(msg)
                 return msg
-            from zhi.skills import discover_skills
-
-            skills = discover_skills()
+            skills = self._skills_cache.get()
             if name not in skills:
                 msg = t("repl.skill_not_found", name=name)
                 self._ui.print(msg)
@@ -472,9 +497,7 @@ class ReplSession:
                 msg = t("repl.skill_delete_usage")
                 self._ui.print(msg)
                 return msg
-            from zhi.skills import discover_skills
-
-            skills = discover_skills()
+            skills = self._skills_cache.get()
             if name not in skills:
                 msg = t("repl.skill_not_found", name=name)
                 self._ui.print(msg)
@@ -490,7 +513,7 @@ class ReplSession:
     def _handle_reset(self, _args: str = "") -> str:
         """Clear conversation history."""
         try:
-            response = input(t("repl.reset_confirm"))
+            response = self._session.prompt(t("repl.reset_confirm"))
             if response.strip().lower() not in ("y", "yes"):
                 return ""
         except (KeyboardInterrupt, EOFError):
@@ -571,5 +594,7 @@ class ReplSession:
 
         if result is None:
             self._ui.show_warning(t("repl.max_turns"))
+        else:
+            self._ui.stream_end()
 
         return result

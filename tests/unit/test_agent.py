@@ -407,9 +407,10 @@ class TestAgentConversation:
 
         run(ctx)
 
-        # Should have: user msg, assistant msg with tool_calls, tool result
+        # Should have: user msg, assistant msg with tool_calls, tool result,
+        # and final assistant response appended for multi-turn context
         roles = [m["role"] for m in ctx.conversation]
-        assert roles == ["user", "assistant", "tool"]
+        assert roles == ["user", "assistant", "tool", "assistant"]
 
     def test_agent_token_tracking(self) -> None:
         """Agent tracks tokens across turns."""

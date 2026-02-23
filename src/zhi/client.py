@@ -144,10 +144,10 @@ class Client:
             yield self._parse_chunk(chunk_raw)
 
     def validate_key(self) -> bool:
-        """Quick validation of API key by making a lightweight call."""
+        """Quick validation of API key by making a minimal API call."""
         try:
             self.chat(
-                messages=[{"role": "user", "content": "hi"}],
+                messages=[{"role": "user", "content": "1"}],
                 model="glm-4-flash",
             )
             return True

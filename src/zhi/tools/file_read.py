@@ -78,15 +78,20 @@ class FileReadTool(BaseTool):
             file_size = resolved.stat().st_size
             truncated = False
 
-            # Try UTF-8 first, then latin-1 as fallback
-            try:
-                content = resolved.read_text(encoding="utf-8")
-            except UnicodeDecodeError:
-                content = resolved.read_text(encoding="latin-1")
-
+            # Read only what we need to avoid loading huge files into memory
             if file_size > _MAX_FILE_SIZE:
-                content = content[:_MAX_FILE_SIZE]
+                with open(resolved, "rb") as f:
+                    raw = f.read(_MAX_FILE_SIZE)
+                try:
+                    content = raw.decode("utf-8")
+                except UnicodeDecodeError:
+                    content = raw.decode("latin-1")
                 truncated = True
+            else:
+                try:
+                    content = resolved.read_text(encoding="utf-8")
+                except UnicodeDecodeError:
+                    content = resolved.read_text(encoding="latin-1")
 
             if truncated:
                 return (

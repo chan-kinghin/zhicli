@@ -6,7 +6,6 @@ Priority: env vars > config file > defaults.
 
 from __future__ import annotations
 
-import contextlib
 import logging
 import os
 from dataclasses import asdict, dataclass
@@ -120,8 +119,15 @@ def save_config(config: ZhiConfig, config_dir: Path | None = None) -> Path:
     config_file.write_text(yaml.dump(data, default_flow_style=False), encoding="utf-8")
 
     # Set restrictive permissions (owner-only read/write)
-    with contextlib.suppress(OSError):
+    try:
         config_file.chmod(0o600)
+    except OSError as exc:
+        logger.warning(
+            "Could not set restrictive permissions on %s: %s. "
+            "API key may be readable by other users.",
+            config_file,
+            exc,
+        )
 
     return config_file
 

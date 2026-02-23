@@ -124,6 +124,14 @@ def run(context: Context) -> str | None:
 
         # No tool calls -- we're done
         if not tool_calls:
+            # Append assistant's final message to conversation for multi-turn context
+            if content:
+                context.conversation.append(
+                    {
+                        "role": Role.ASSISTANT.value,
+                        "content": content,
+                    }
+                )
             return content
 
         # Build assistant message with tool calls

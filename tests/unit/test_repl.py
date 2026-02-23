@@ -166,7 +166,7 @@ class TestReplConversation:
             ]
         )
         repl = _make_repl(context=ctx, tmp_path=tmp_path)
-        with patch("builtins.input", return_value="y"):
+        with patch.object(repl._session, "prompt", return_value="y"):
             result = repl.handle_input("/reset")
         assert "cleared" in result.lower()
         # System messages should be preserved
@@ -181,7 +181,7 @@ class TestReplConversation:
             ]
         )
         repl = _make_repl(context=ctx, tmp_path=tmp_path)
-        with patch("builtins.input", return_value="n"):
+        with patch.object(repl._session, "prompt", return_value="n"):
             result = repl.handle_input("/reset")
         assert result == ""
         assert len(ctx.conversation) == 2  # Unchanged

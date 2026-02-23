@@ -70,7 +70,7 @@ class FileListTool(BaseTool):
         working_resolved = self._working_dir.resolve()
 
         # Verify within working dir
-        wd_prefix = str(working_resolved)
+        wd_prefix = str(working_resolved) + "/"
         if not str(resolved).startswith(wd_prefix) and (resolved != working_resolved):
             return "Error: Path is outside the working directory."
 

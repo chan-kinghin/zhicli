@@ -301,4 +301,9 @@ def t(key: str, **kwargs: Any) -> str:
     lang = resolve_language()
     strings = _STRINGS.get(lang, _STRINGS["en"])
     template = strings.get(key, _STRINGS["en"].get(key, key))
-    return template.format(**kwargs) if kwargs else template
+    if not kwargs:
+        return template
+    try:
+        return template.format(**kwargs)
+    except KeyError:
+        return template
