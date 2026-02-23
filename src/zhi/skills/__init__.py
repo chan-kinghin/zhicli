@@ -14,6 +14,13 @@ logger = logging.getLogger(__name__)
 BUILTIN_SKILLS_DIR = Path(__file__).parent / "builtin"
 
 
+def _default_user_skills_dir() -> Path:
+    """Return the platform-specific user skills directory."""
+    import platformdirs
+
+    return Path(platformdirs.user_config_dir("zhi")) / "skills"
+
+
 def discover_skills(
     builtin_dir: Path | None = None,
     user_dir: Path | None = None,
@@ -25,13 +32,15 @@ def discover_skills(
 
     Args:
         builtin_dir: Path to builtin skills. Defaults to package builtin dir.
-        user_dir: Path to user skills directory. May not exist.
+        user_dir: Path to user skills directory. Defaults to platform config dir.
 
     Returns:
         Dict mapping skill name to SkillConfig.
     """
     if builtin_dir is None:
         builtin_dir = BUILTIN_SKILLS_DIR
+    if user_dir is None:
+        user_dir = _default_user_skills_dir()
 
     skills: dict[str, SkillConfig] = {}
 
@@ -39,8 +48,7 @@ def discover_skills(
     skills.update(_scan_directory(builtin_dir, source="builtin"))
 
     # Load user skills (override builtins)
-    if user_dir is not None:
-        skills.update(_scan_directory(user_dir, source="user"))
+    skills.update(_scan_directory(user_dir, source="user"))
 
     return skills
 
@@ -57,8 +65,7 @@ def _scan_directory(directory: Path, source: str) -> dict[str, SkillConfig]:
 
     for yaml_path in sorted(directory.glob("*.yaml")):
         try:
-            config = load_skill(yaml_path)
-            config.source = source
+            config = load_skill(yaml_path, source=source)
             skills[config.name] = config
         except Exception as exc:
             warnings.warn(

@@ -80,7 +80,20 @@ class Context:
     on_tool_start: Callable[[str, dict[str, Any]], None] | None = None
     on_tool_end: Callable[[str, str], None] | None = None
     on_waiting: Callable[[str], None] | None = None
+    on_waiting_done: Callable[[], None] | None = None
     on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None
+
+
+def safe_parse_args(raw_args: Any) -> dict[str, Any]:
+    """Safely parse tool call arguments, returning empty dict on failure."""
+    if isinstance(raw_args, dict):
+        return raw_args
+    if isinstance(raw_args, str):
+        try:
+            return json.loads(raw_args)
+        except (json.JSONDecodeError, ValueError):
+            return {"_raw": raw_args}
+    return {}
 
 
 class AgentInterruptedError(Exception):
@@ -104,6 +117,10 @@ def run(context: Context) -> str | None:
             tools=context.tool_schemas or None,
             thinking=context.thinking_enabled,
         )
+
+        # Clear waiting indicator now that response has arrived
+        if context.on_waiting_done:
+            context.on_waiting_done()
 
         # Track tokens
         total_tokens = getattr(response, "total_tokens", 0)
@@ -201,7 +218,8 @@ def run(context: Context) -> str | None:
                     truncated_size = len(result)
                     result = (
                         result[:_MAX_TOOL_OUTPUT]
-                        + f"\n[truncated, showing first 50KB of {truncated_size} bytes]"
+                        + "\n[truncated, showing first "
+                        + f"{_MAX_TOOL_OUTPUT} of {truncated_size} chars]"
                     )
             except Exception as e:
                 logger.exception("Tool %s failed", func_name)

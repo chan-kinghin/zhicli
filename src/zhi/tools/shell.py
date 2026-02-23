@@ -114,9 +114,17 @@ class ShellTool(BaseTool):
                     f"Pattern '{blocked}' is not allowed."
                 )
 
-        # Also block common bypass patterns
+        # Also block common bypass patterns: shells with -c, scripting
+        # language one-liners, and direct paths to rm
         if re.search(
-            r"\beval\b|\bbash\s+-c\b|\bsh\s+-c\b|/bin/rm\b|/usr/bin/rm\b",
+            r"\beval\b"
+            r"|\b(?:ba)?sh\s+-c\b"
+            r"|\b(?:z|da|fi|k|c|tc)sh\s+-c\b"
+            r"|\bperl\s+-e\b"
+            r"|\bpython[0-9]*\s+-c\b"
+            r"|\bruby\s+-e\b"
+            r"|\bnode\s+-e\b"
+            r"|/bin/rm\b|/usr/bin/rm\b",
             cmd_normalized,
         ):
             return (

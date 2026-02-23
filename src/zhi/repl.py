@@ -6,7 +6,6 @@ multi-line input, and CJK/IME support.
 
 from __future__ import annotations
 
-import json
 import logging
 import re
 import time
@@ -18,7 +17,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
 from prompt_toolkit.history import FileHistory, InMemoryHistory
 
-from zhi.agent import Context, PermissionMode, Role
+from zhi.agent import Context, PermissionMode, Role, safe_parse_args
 from zhi.agent import run as agent_run
 from zhi.i18n import prepend_preamble, t
 from zhi.models import MODELS, is_valid_model
@@ -48,18 +47,6 @@ _SLASH_COMMANDS = [
 
 _MAX_HISTORY_ENTRIES = 10_000
 _SKILLS_CACHE_TTL = 5.0  # seconds
-
-
-def _safe_parse_args(raw_args: Any) -> dict[str, Any]:
-    """Safely parse tool call arguments, returning empty dict on failure."""
-    if isinstance(raw_args, dict):
-        return raw_args
-    if isinstance(raw_args, str):
-        try:
-            return json.loads(raw_args)
-        except (json.JSONDecodeError, ValueError):
-            return {"_raw": raw_args}
-    return {}
 
 
 class _SkillsCache:
@@ -408,9 +395,10 @@ class ReplSession:
             on_tool_end=self._ui.show_tool_end,
             on_permission=lambda tool, call: self._ui.ask_permission(
                 tool.name,
-                _safe_parse_args(call["function"]["arguments"]),
+                safe_parse_args(call["function"]["arguments"]),
             ),
             on_waiting=self._ui.show_waiting,
+            on_waiting_done=self._ui.clear_waiting,
         )
 
         try:
@@ -423,6 +411,9 @@ class ReplSession:
             msg = t("repl.skill_error", skill=skill_name, error=str(e))
             self._ui.print(msg)
             return msg
+        finally:
+            # Merge skill token usage back into the main session
+            self._context.session_tokens += skill_context.session_tokens
 
         if result is None:
             msg = t("repl.skill_max_turns", skill=skill_name)
@@ -565,12 +556,11 @@ class ReplSession:
     def _handle_chat(self, text: str) -> str | None:
         """Send user text to the agent and display results."""
         # Add user message to conversation
-        self._context.conversation.append(
-            {
-                "role": Role.USER.value,
-                "content": text,
-            }
-        )
+        user_msg = {
+            "role": Role.USER.value,
+            "content": text,
+        }
+        self._context.conversation.append(user_msg)
 
         try:
             result = agent_run(self._context)
@@ -579,6 +569,11 @@ class ReplSession:
             return None
         except Exception as e:
             logger.exception("Agent error")
+            # Remove the user message to avoid consecutive user messages
+            # in conversation (which would confuse the LLM on next turn)
+            conv = self._context.conversation
+            if conv and conv[-1] is user_msg:
+                self._context.conversation.pop()
             from zhi.errors import ApiError
 
             self._ui.show_error(

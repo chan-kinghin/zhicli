@@ -6,27 +6,15 @@ Handles argument parsing and dispatches to REPL, one-shot, or skill run modes.
 from __future__ import annotations
 
 import argparse
-import json
 import logging
 import os
 import sys
 from typing import Any
 
+from zhi.agent import safe_parse_args
 from zhi.i18n import prepend_preamble, set_language, t
 
 logger = logging.getLogger(__name__)
-
-
-def _safe_parse_args(raw_args: Any) -> dict[str, Any]:
-    """Safely parse tool call arguments, returning empty dict on failure."""
-    if isinstance(raw_args, dict):
-        return raw_args
-    if isinstance(raw_args, str):
-        try:
-            return json.loads(raw_args)
-        except (json.JSONDecodeError, ValueError):
-            return {"_raw": raw_args}
-    return {}
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -158,9 +146,10 @@ def _build_context(
         on_tool_end=ui.show_tool_end,
         on_permission=lambda tool, call: ui.ask_permission(
             tool.name,
-            _safe_parse_args(call["function"]["arguments"]),
+            safe_parse_args(call["function"]["arguments"]),
         ),
         on_waiting=ui.show_waiting,
+        on_waiting_done=ui.clear_waiting,
     )
 
 
@@ -175,9 +164,18 @@ def _require_api_key(config: Any) -> bool:
 def _run_oneshot(config: Any, ui: Any, message: str) -> None:
     """Run a single message through the agent and exit."""
     from zhi.agent import run as agent_run
+    from zhi.errors import ApiError
 
     context = _build_context(config, ui, user_message=message)
-    result = agent_run(context)
+    try:
+        result = agent_run(context)
+    except KeyboardInterrupt:
+        print(t("repl.interrupted"))
+        return
+    except Exception as e:
+        logger.exception("Agent error in one-shot mode")
+        ui.show_error(ApiError(str(e), suggestions=[t("repl.error_try_again")]))
+        sys.exit(1)
     if result:
         ui.stream_end()
 
@@ -185,6 +183,7 @@ def _run_oneshot(config: Any, ui: Any, message: str) -> None:
 def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
     """Run a skill by name with optional input files."""
     from zhi.agent import run as agent_run
+    from zhi.errors import ApiError
     from zhi.skills import discover_skills
 
     skills = discover_skills()
@@ -209,7 +208,15 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
         user_message=user_content,
         max_turns=skill.max_turns,
     )
-    result = agent_run(context)
+    try:
+        result = agent_run(context)
+    except KeyboardInterrupt:
+        print(t("repl.interrupted"))
+        return
+    except Exception as e:
+        logger.exception("Agent error in skill mode")
+        ui.show_error(ApiError(str(e), suggestions=[t("repl.error_try_again")]))
+        sys.exit(1)
     if result:
         ui.stream_end()
 

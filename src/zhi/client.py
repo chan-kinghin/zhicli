@@ -249,6 +249,12 @@ class Client:
 
     def _parse_response(self, raw: Any) -> ChatResponse:
         """Parse SDK response into ChatResponse."""
+        if not raw.choices:
+            raise ClientError(
+                "API returned empty response (no choices)",
+                code="EMPTY_RESPONSE",
+                retryable=True,
+            )
         choice = raw.choices[0]
         msg = choice.message
         usage = raw.usage

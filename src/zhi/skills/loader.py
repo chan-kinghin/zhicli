@@ -50,11 +50,12 @@ def validate_skill_name(name: str) -> bool:
     return bool(SKILL_NAME_PATTERN.match(name))
 
 
-def load_skill(path: Path) -> SkillConfig:
+def load_skill(path: Path, *, source: str = "") -> SkillConfig:
     """Load and validate a skill YAML file.
 
     Args:
         path: Path to the YAML file.
+        source: Origin label (e.g. "builtin", "user"). Stored in the config.
 
     Returns:
         A validated SkillConfig.
@@ -187,4 +188,5 @@ def load_skill(path: Path) -> SkillConfig:
         input_args=input_args,
         output_description=output_description,
         output_directory=output_directory,
+        source=source,
     )

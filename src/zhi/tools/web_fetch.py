@@ -63,6 +63,9 @@ def _strip_html_tags(html_content: str) -> str:
     return text.strip()
 
 
+_MAX_REDIRECTS = 5
+
+
 class WebFetchTool(BaseTool):
     """Fetch content from a URL."""
 
@@ -84,6 +87,17 @@ class WebFetchTool(BaseTool):
     }
     risky: ClassVar[bool] = False
 
+    def _validate_url(self, url: str) -> str | None:
+        """Validate a URL for SSRF. Returns error string or None if OK."""
+        try:
+            parsed = urlparse(url)
+            hostname = parsed.hostname or ""
+            if _is_private_or_reserved(hostname):
+                return "Error: Access to internal/private addresses is not allowed."
+        except ValueError:
+            return "Error: Could not parse URL."
+        return None
+
     def execute(self, **kwargs: Any) -> str:
         import httpx
 
@@ -96,21 +110,38 @@ class WebFetchTool(BaseTool):
             return "Error: Invalid URL. Must start with http:// or https://."
 
         # SSRF protection: block private/internal addresses
-        try:
-            parsed = urlparse(url)
-            hostname = parsed.hostname or ""
-            if _is_private_or_reserved(hostname):
-                return "Error: Access to internal/private addresses is not allowed."
-        except ValueError:
-            return "Error: Could not parse URL."
+        ssrf_err = self._validate_url(url)
+        if ssrf_err:
+            return ssrf_err
 
+        # Manual redirect handling to validate each hop against SSRF
         try:
-            response = httpx.get(
-                url,
-                timeout=_DEFAULT_TIMEOUT,
-                follow_redirects=True,
-                headers={"User-Agent": _USER_AGENT},
-            )
+            current_url = url
+            for _hop in range(_MAX_REDIRECTS):
+                response = httpx.get(
+                    current_url,
+                    timeout=_DEFAULT_TIMEOUT,
+                    follow_redirects=False,
+                    headers={"User-Agent": _USER_AGENT},
+                )
+                if response.is_redirect:
+                    location = response.headers.get("location", "")
+                    if not location:
+                        return "Error: Redirect with no Location header."
+                    # Resolve relative redirects
+                    if response.next_request:
+                        redirect_url = response.next_request.url
+                    else:
+                        redirect_url = location
+                    redirect_str = str(redirect_url)
+                    ssrf_err = self._validate_url(redirect_str)
+                    if ssrf_err:
+                        return ssrf_err
+                    current_url = redirect_str
+                else:
+                    break
+            else:
+                return f"Error: Too many redirects (>{_MAX_REDIRECTS})."
         except httpx.TimeoutException:
             return f"Error: Request timed out after {_DEFAULT_TIMEOUT}s."
         except httpx.ConnectError:
