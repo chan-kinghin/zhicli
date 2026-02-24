@@ -149,11 +149,14 @@ class TestReplExit:
 
 
 class TestReplUnknown:
-    def test_repl_unknown_command(self, tmp_path: Path) -> None:
+    def test_repl_unknown_slash_sent_to_chat(self, tmp_path: Path) -> None:
+        """Unknown /words are sent to chat, not treated as commands."""
         repl = _make_repl(tmp_path=tmp_path)
-        result = repl.handle_input("/foobar")
-        assert "Unknown command" in result
-        assert "/help" in result
+        with patch.object(repl, "_handle_chat", return_value="response") as mock_chat:
+            result = repl.handle_input("/foobar")
+        # Should NOT produce "Unknown command" — goes to chat instead
+        mock_chat.assert_called_once()
+        assert result == "response"
 
 
 class TestReplConversation:
@@ -317,14 +320,25 @@ class TestReplEmptyInput:
 
 class TestReplEdgeCases:
     def test_edge_slash_only(self, tmp_path: Path) -> None:
+        """Bare '/' is sent to chat, not treated as a command."""
         repl = _make_repl(tmp_path=tmp_path)
-        result = repl.handle_input("/")
-        assert "Unknown command" in result
+        with patch.object(repl, "_handle_chat", return_value="ok") as mock_chat:
+            repl.handle_input("/")
+        mock_chat.assert_called_once()
 
     def test_edge_slash_with_spaces(self, tmp_path: Path) -> None:
+        """'/  ' is sent to chat, not treated as a command."""
         repl = _make_repl(tmp_path=tmp_path)
-        result = repl.handle_input("/  ")
-        assert "Unknown command" in result
+        with patch.object(repl, "_handle_chat", return_value="ok") as mock_chat:
+            repl.handle_input("/  ")
+        mock_chat.assert_called_once()
+
+    def test_file_path_not_treated_as_command(self, tmp_path: Path) -> None:
+        """Absolute file paths starting with / should go to chat, not command."""
+        repl = _make_repl(tmp_path=tmp_path)
+        with patch.object(repl, "_handle_chat", return_value="ok") as mock_chat:
+            repl.handle_input("/Users/someone/file.xlsx do something")
+        mock_chat.assert_called_once()
 
     def test_prompt_format(self, tmp_path: Path) -> None:
         ctx = _make_context(permission_mode=PermissionMode.APPROVE)

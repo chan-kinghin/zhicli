@@ -39,7 +39,9 @@ logger = logging.getLogger(__name__)
 # Lines matching these patterns are excluded from history
 _SENSITIVE_PATTERNS = re.compile(r"(api_key|password|token|secret)", re.IGNORECASE)
 
-_SLASH_COMMANDS = [
+# Canonical set of slash commands — used by both dispatch and completer.
+# Add new commands here AND in _handle_command's handlers dict.
+_SLASH_COMMANDS = frozenset({
     "/help",
     "/auto",
     "/approve",
@@ -54,7 +56,7 @@ _SLASH_COMMANDS = [
     "/undo",
     "/usage",
     "/verbose",
-]
+})
 
 _MAX_HISTORY_ENTRIES = 10_000
 _SKILLS_CACHE_TTL = 5.0  # seconds
@@ -106,17 +108,17 @@ class _ZhiCompleter(Completer):
     def get_completions(self, document: Any, complete_event: Any) -> Any:
         text = document.text_before_cursor
         if text.startswith("/run "):
-            prefix = text[5:]
+            prefix = text[len("/run "):]
             for name in sorted(self._skills_fn()):
                 if name.startswith(prefix):
                     yield Completion(name, start_position=-len(prefix))
         elif text.startswith("/model "):
-            prefix = text[7:]
+            prefix = text[len("/model "):]
             for name in self._models:
                 if name.startswith(prefix):
                     yield Completion(name, start_position=-len(prefix))
         elif text.startswith("/skill "):
-            prefix = text[7:]
+            prefix = text[len("/skill "):]
             for sub in ["list", "show", "edit", "delete"]:
                 if sub.startswith(prefix):
                     yield Completion(sub, start_position=-len(prefix))
@@ -238,7 +240,9 @@ class ReplSession:
                 )
 
         if cleaned_text.startswith("/"):
-            return self._handle_command(cleaned_text)
+            first_word = cleaned_text.split(maxsplit=1)[0].lower()
+            if first_word in _SLASH_COMMANDS:
+                return self._handle_command(cleaned_text)
         return self._handle_chat(cleaned_text, attachments=attachments)
 
     def _handle_command(self, text: str) -> str | None:
@@ -263,6 +267,11 @@ class ReplSession:
             "/usage": self._handle_usage,
             "/verbose": self._handle_verbose,
         }
+        assert set(handlers) == _SLASH_COMMANDS, (
+            f"_SLASH_COMMANDS and handlers dict out of sync: "
+            f"missing handlers={_SLASH_COMMANDS - set(handlers)}, "
+            f"extra handlers={set(handlers) - _SLASH_COMMANDS}"
+        )
 
         handler = handlers.get(command)
         if handler is None:
