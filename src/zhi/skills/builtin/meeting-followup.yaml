@@ -25,6 +25,7 @@ system_prompt: |
   - If the notes mention deadlines, highlight any that are within the next 7 days.
   - If no translation is needed (notes are already in the target language), skip step 4.
   - Name output files based on the meeting topic or date if available.
+  If the target audience is unclear, use ask_user to clarify who will receive the output.
 tools:
   - file_read
   - ocr
@@ -32,6 +33,7 @@ tools:
   - meeting-notes
   - summarize
   - translate
+  - ask_user
 max_turns: 15
 input:
   description: Raw meeting notes (text file, PDF, or image)

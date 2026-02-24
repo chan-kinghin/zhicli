@@ -246,6 +246,46 @@ class TestMaybeCheckUpdate:
         assert captured.out == ""
 
 
+class TestChatSystemPrompt:
+    """Test that CHAT_SYSTEM_PROMPT is injected in REPL and one-shot."""
+
+    def test_repl_context_has_system_prompt(self) -> None:
+        from zhi.cli import _build_context
+        from zhi.config import ZhiConfig
+        from zhi.i18n import CHAT_SYSTEM_PROMPT
+
+        config = ZhiConfig(api_key="sk-test")
+        ui = MagicMock()
+
+        with patch("zhi.client.Client") as mock_client_cls:
+            mock_client_cls.return_value = MagicMock()
+            ctx = _build_context(config, ui, system_prompt=CHAT_SYSTEM_PROMPT)
+
+        assert len(ctx.conversation) == 1
+        assert ctx.conversation[0]["role"] == "system"
+        assert "ask_user" in ctx.conversation[0]["content"]
+
+    def test_oneshot_context_has_system_prompt(self) -> None:
+        from zhi.cli import _build_context
+        from zhi.config import ZhiConfig
+        from zhi.i18n import CHAT_SYSTEM_PROMPT
+
+        config = ZhiConfig(api_key="sk-test")
+        ui = MagicMock()
+
+        with patch("zhi.client.Client") as mock_client_cls:
+            mock_client_cls.return_value = MagicMock()
+            ctx = _build_context(
+                config, ui, system_prompt=CHAT_SYSTEM_PROMPT, user_message="hello"
+            )
+
+        assert len(ctx.conversation) == 2
+        assert ctx.conversation[0]["role"] == "system"
+        assert "skill_create" in ctx.conversation[0]["content"]
+        assert ctx.conversation[1]["role"] == "user"
+        assert ctx.conversation[1]["content"] == "hello"
+
+
 class TestRequireApiKey:
     """Test _require_api_key helper."""
 

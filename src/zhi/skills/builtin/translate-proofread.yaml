@@ -31,12 +31,14 @@ system_prompt: |
   - If the source is a PDF or image, use OCR first.
   - The final translation should read as if it were originally written in the target language.
   - Flag any culturally-specific idioms or references that may not translate directly.
+  If the target language is ambiguous, use ask_user to confirm.
 tools:
   - file_read
   - ocr
   - file_write
   - translate
   - proofread
+  - ask_user
 max_turns: 12
 input:
   description: A document to translate and proofread

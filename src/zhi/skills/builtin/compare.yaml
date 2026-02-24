@@ -35,11 +35,13 @@ system_prompt: |
   - For large documents, group related changes by section.
   - If comparing data files (CSV, etc.), highlight row/column differences.
   - Save the report as a markdown file.
+  If the comparison scope is unclear, use ask_user to clarify what to focus on.
 tools:
   - file_read
   - ocr
   - file_write
   - file_list
+  - ask_user
 max_turns: 8
 input:
   description: Two files to compare

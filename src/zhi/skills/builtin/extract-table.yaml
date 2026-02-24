@@ -16,11 +16,13 @@ system_prompt: |
   - For numeric columns, remove currency symbols and thousand separators.
   - If the user requests Excel output, save as .xlsx instead of .csv.
   - Name output files descriptively based on table content when possible.
+  If the document contains multiple tables or ambiguous column structures, use ask_user to clarify which tables to extract or how to interpret columns.
 tools:
   - ocr
   - file_read
   - file_write
   - file_list
+  - ask_user
 max_turns: 8
 input:
   description: A document containing tables (PDF, image, or text file)

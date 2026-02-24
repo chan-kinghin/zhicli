@@ -50,6 +50,7 @@ system_prompt: |
   - Flag any clause that imposes unlimited liability or one-sided obligations.
   - If comparing versions, prioritize changes to financial terms and obligations.
   - Save as a single markdown file.
+  If the user has specific focus areas, use ask_user to ask which clauses to prioritize.
 tools:
   - file_read
   - ocr
@@ -58,6 +59,7 @@ tools:
   - analyze
   - compare
   - proofread
+  - ask_user
 max_turns: 15
 input:
   description: A contract document to review, optionally with a previous version to compare

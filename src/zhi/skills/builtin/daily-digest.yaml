@@ -39,12 +39,14 @@ system_prompt: |
   - If a file cannot be read, note it in the report and continue.
   - Order documents by relevance or group by topic, not just alphabetically.
   - Save the final digest as a single markdown file.
+  If the directory contains many file types, use ask_user to confirm which types to include.
 tools:
   - file_list
   - file_read
   - ocr
   - file_write
   - summarize
+  - ask_user
 max_turns: 15
 input:
   description: A directory containing documents to digest

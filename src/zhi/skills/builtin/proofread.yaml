@@ -21,10 +21,12 @@ system_prompt: |
   - Respect the author's voice and tone. Only suggest style changes that improve clarity.
   - For ambiguous cases, explain why you suggest the change.
   - Save the report as a markdown file.
+  If the document's intended style is unclear (formal vs. informal), use ask_user to clarify.
 tools:
   - file_read
   - ocr
   - file_write
+  - ask_user
 max_turns: 5
 input:
   description: A document to proofread

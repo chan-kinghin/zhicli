@@ -28,7 +28,8 @@ class SkillCreateTool(BaseTool):
     description: ClassVar[str] = (
         "Create a new skill. Default format is SKILL.md (a directory with "
         "markdown instructions and optional reference files). Use format='yaml' "
-        "for a simpler flat YAML file."
+        "for a simpler flat YAML file. Tip: include 'ask_user' in the tools "
+        "list when the skill may need to clarify ambiguous inputs at runtime."
     )
     parameters: ClassVar[dict[str, Any]] = {
         "type": "object",
@@ -54,7 +55,11 @@ class SkillCreateTool(BaseTool):
             "tools": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "List of tool names this skill is allowed to use.",
+                "description": (
+                    "List of tool names this skill is allowed to use. "
+                    "Include 'ask_user' when the skill may encounter "
+                    "ambiguous input that requires user clarification."
+                ),
             },
             "model": {
                 "type": "string",

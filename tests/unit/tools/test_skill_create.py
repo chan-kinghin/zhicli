@@ -411,6 +411,17 @@ class TestSkillCreateValidation:
         assert "format" in result.lower()
 
 
+class TestSkillCreateDescriptions:
+    def test_class_description_mentions_ask_user(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        assert "ask_user" in tool.description
+
+    def test_tools_param_description_mentions_ask_user(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tools_desc = tool.parameters["properties"]["tools"]["description"]
+        assert "ask_user" in tools_desc
+
+
 class TestSkillCreateRiskyFlag:
     def test_skill_create_is_risky(self, tmp_path: Path) -> None:
         tool = SkillCreateTool(skills_dir=tmp_path)

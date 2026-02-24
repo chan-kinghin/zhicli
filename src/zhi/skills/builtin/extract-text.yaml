@@ -13,10 +13,12 @@ system_prompt: |
   - For multi-page documents, separate pages with a blank line, not page markers.
   - If the document contains tables, represent them as aligned text or markdown tables.
   - Save the output as a .txt file named after the input file (e.g., report.pdf → report.txt).
+  If the document contains multiple languages or unclear sections, use ask_user to clarify extraction priorities.
 tools:
   - ocr
   - file_write
   - file_list
+  - ask_user
 max_turns: 5
 input:
   description: A PDF or image file to extract text from

@@ -29,6 +29,7 @@ system_prompt: |
   - Validate that line item amounts sum to the invoice total (flag discrepancies).
   - Name the output file descriptively: `invoices-[date-range].xlsx` or `invoice-[vendor].xlsx`.
   - If processing a single invoice, skip Sheet 2.
+  If invoice formats vary or currency/date formats are ambiguous, use ask_user to clarify.
 tools:
   - file_list
   - file_read
@@ -36,6 +37,7 @@ tools:
   - file_write
   - extract-table
   - reformat
+  - ask_user
 max_turns: 15
 input:
   description: Invoice PDF(s), image(s), or a directory of invoices

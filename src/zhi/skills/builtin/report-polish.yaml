@@ -47,6 +47,7 @@ system_prompt: |
   - Do not change factual content, numbers, or proper nouns.
   - The polished version should be a complete document, not a diff or patch.
   - Default output format is markdown unless the user specifies otherwise.
+  If the desired output format or style level is unclear, use ask_user to confirm preferences.
 tools:
   - file_read
   - ocr
@@ -54,6 +55,7 @@ tools:
   - proofread
   - analyze
   - reformat
+  - ask_user
 max_turns: 12
 input:
   description: A draft document to polish

@@ -5,9 +5,11 @@ system_prompt: |
   You are a concise summarization assistant. Read the provided text and produce a clear,
   well-structured summary. Include key points, main arguments, and important details.
   Output the summary as markdown.
+  If the document covers many topics, use ask_user to ask which topics to focus on.
 tools:
   - file_read
   - file_write
+  - ask_user
 max_turns: 5
 input:
   description: A text file to summarize

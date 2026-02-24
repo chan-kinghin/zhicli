@@ -13,7 +13,7 @@ import time
 from typing import Any
 
 from zhi.agent import safe_parse_args
-from zhi.i18n import prepend_preamble, set_language, t
+from zhi.i18n import CHAT_SYSTEM_PROMPT, prepend_preamble, set_language, t
 
 logger = logging.getLogger(__name__)
 
@@ -244,7 +244,9 @@ def _run_oneshot(config: Any, ui: Any, message: str) -> None:
     from zhi.agent import run as agent_run
     from zhi.errors import ApiError
 
-    context = _build_context(config, ui, user_message=message)
+    context = _build_context(
+        config, ui, system_prompt=CHAT_SYSTEM_PROMPT, user_message=message
+    )
     t0 = time.monotonic()
     try:
         result = agent_run(context)
@@ -379,7 +381,7 @@ def _run_repl(config: Any, ui: Any) -> None:
     """Launch the interactive REPL."""
     from zhi.repl import ReplSession
 
-    context = _build_context(config, ui)
+    context = _build_context(config, ui, system_prompt=CHAT_SYSTEM_PROMPT)
     session = ReplSession(context=context, ui=ui)
     session.run()
 

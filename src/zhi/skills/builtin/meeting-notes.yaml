@@ -33,10 +33,12 @@ system_prompt: |
   - Extract action items aggressively. Anything phrased as "X will do Y" or "need to Z" is an action item.
   - If owners or deadlines are unclear, mark them as "TBD".
   - Preserve important context but remove filler words and off-topic tangents.
+  If participant roles or meeting context is unclear, use ask_user to gather additional context.
 tools:
   - file_read
   - ocr
   - file_write
+  - ask_user
 max_turns: 5
 input:
   description: Raw meeting notes (text file, PDF, or image)

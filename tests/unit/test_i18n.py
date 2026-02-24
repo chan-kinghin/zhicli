@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from zhi.i18n import (
+    CHAT_SYSTEM_PROMPT,
     LANGUAGE_PREAMBLE,
     get_language,
     prepend_preamble,
@@ -185,3 +186,15 @@ class TestWindowsLocaleDetection:
         monkeypatch.delenv("LC_ALL", raising=False)
         monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: None)
         assert resolve_language() == "en"
+
+
+class TestChatSystemPrompt:
+    def test_prompt_exists(self) -> None:
+        assert CHAT_SYSTEM_PROMPT
+        assert len(CHAT_SYSTEM_PROMPT) > 0
+
+    def test_prompt_mentions_ask_user(self) -> None:
+        assert "ask_user" in CHAT_SYSTEM_PROMPT
+
+    def test_prompt_mentions_skill_create(self) -> None:
+        assert "skill_create" in CHAT_SYSTEM_PROMPT

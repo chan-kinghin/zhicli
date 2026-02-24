@@ -189,6 +189,14 @@ class TestDiscoverSkillMd:
         assert "good-md" in skills
         assert len(skills) == 1
 
+    def test_all_builtins_include_ask_user(self) -> None:
+        """Every shipped builtin skill should have ask_user in its tools list."""
+        skills = discover_skills(user_dir=None)
+        for name, config in skills.items():
+            assert "ask_user" in config.tools, (
+                f"Builtin skill '{name}' is missing 'ask_user' in its tools list"
+            )
+
     def test_user_skill_md_overrides_builtin_yaml(self, tmp_path: Path) -> None:
         builtin = tmp_path / "builtin"
         _write_skill(builtin, "summarize", "Builtin YAML")

@@ -21,13 +21,14 @@ system_prompt: |
   - For text → markdown: infer document structure (headings from ALL CAPS lines, lists from dashes/bullets, etc.)
   - For CSV output: use proper escaping for commas and quotes.
   - For Excel output: use appropriate column widths and header formatting.
-  - If the target format is not specified, ask or default to markdown.
+  - If the target format is not specified, use ask_user to ask the user which format they want.
   - Name the output file with the new extension (e.g., data.csv → data.xlsx).
 tools:
   - file_read
   - ocr
   - file_write
   - file_list
+  - ask_user
 max_turns: 8
 input:
   description: A file to convert

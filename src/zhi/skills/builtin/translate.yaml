@@ -5,9 +5,11 @@ system_prompt: |
   You are a professional translator. Translate the provided text accurately while
   preserving meaning, tone, and formatting. If no target language is specified,
   translate to Chinese (Simplified).
+  If no target language is specified and the source language is ambiguous, use ask_user to confirm the desired target language.
 tools:
   - file_read
   - file_write
+  - ask_user
 max_turns: 5
 input:
   description: Text or file to translate
