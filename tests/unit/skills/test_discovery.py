@@ -78,17 +78,19 @@ class TestDiscoverSkills:
         _write_skill(builtin, "good-skill", "Good skill")
         bad = builtin / "bad.yaml"
         bad.write_text("this is: [malformed yaml\n")
+        user = tmp_path / "user"
 
         with pytest.warns(UserWarning, match="Skipping corrupted"):
-            skills = discover_skills(builtin_dir=builtin, user_dir=None)
+            skills = discover_skills(builtin_dir=builtin, user_dir=user)
         assert "good-skill" in skills
         assert len(skills) == 1
 
     def test_discover_empty_builtin_dir(self, tmp_path: Path) -> None:
         builtin = tmp_path / "builtin"
         builtin.mkdir()
+        user = tmp_path / "user"
 
-        skills = discover_skills(builtin_dir=builtin, user_dir=None)
+        skills = discover_skills(builtin_dir=builtin, user_dir=user)
         assert skills == {}
 
     def test_discover_both_dirs(self, tmp_path: Path) -> None:
@@ -126,3 +128,74 @@ class TestDiscoverSkills:
             result = _scan_directory(skills_dir, source="user")
 
         assert result == {}  # Graceful empty, no crash
+
+
+def _write_skill_md(
+    directory: Path, name: str, description: str = "Test", tools: str = "file_read"
+) -> Path:
+    """Helper to write a minimal valid SKILL.md directory."""
+    skill_dir = directory / name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    skill_md = skill_dir / "SKILL.md"
+    skill_md.write_text(
+        f"---\nname: {name}\ndescription: {description}\ntools: [{tools}]\n---\n\n"
+        f"# {name}\n\nYou are a {description} assistant.\n"
+    )
+    return skill_dir
+
+
+class TestDiscoverSkillMd:
+    def test_discover_skill_md_directory(self, tmp_path: Path) -> None:
+        builtin = tmp_path / "builtin"
+        builtin.mkdir()
+        _write_skill_md(builtin, "md-skill", "Markdown skill")
+
+        skills = discover_skills(builtin_dir=builtin, user_dir=None)
+        assert "md-skill" in skills
+        assert skills["md-skill"].description == "Markdown skill"
+        assert skills["md-skill"].source == "builtin"
+
+    def test_skill_md_overrides_yaml(self, tmp_path: Path) -> None:
+        builtin = tmp_path / "builtin"
+        _write_skill(builtin, "summarize", "YAML summarize")
+        _write_skill_md(builtin, "summarize", "MD summarize")
+
+        skills = discover_skills(builtin_dir=builtin, user_dir=None)
+        assert skills["summarize"].description == "MD summarize"
+
+    def test_discover_mixed_yaml_and_md(self, tmp_path: Path) -> None:
+        builtin = tmp_path / "builtin"
+        _write_skill(builtin, "yaml-only", "From YAML")
+        _write_skill_md(builtin, "md-only", "From MD")
+
+        skills = discover_skills(builtin_dir=builtin, user_dir=None)
+        assert "yaml-only" in skills
+        assert "md-only" in skills
+        assert skills["yaml-only"].description == "From YAML"
+        assert skills["md-only"].description == "From MD"
+
+    def test_corrupted_skill_md_skipped(self, tmp_path: Path) -> None:
+        builtin = tmp_path / "builtin"
+        builtin.mkdir()
+        _write_skill_md(builtin, "good-md", "Good skill")
+        # Create a corrupted SKILL.md
+        bad_dir = builtin / "bad-md"
+        bad_dir.mkdir()
+        (bad_dir / "SKILL.md").write_text("no frontmatter here\n")
+        user = tmp_path / "user"
+
+        with pytest.warns(UserWarning, match="Skipping corrupted skill directory"):
+            skills = discover_skills(builtin_dir=builtin, user_dir=user)
+        assert "good-md" in skills
+        assert len(skills) == 1
+
+    def test_user_skill_md_overrides_builtin_yaml(self, tmp_path: Path) -> None:
+        builtin = tmp_path / "builtin"
+        _write_skill(builtin, "summarize", "Builtin YAML")
+        user = tmp_path / "user"
+        user.mkdir()
+        _write_skill_md(user, "summarize", "User MD")
+
+        skills = discover_skills(builtin_dir=builtin, user_dir=user)
+        assert skills["summarize"].description == "User MD"
+        assert skills["summarize"].source == "user"

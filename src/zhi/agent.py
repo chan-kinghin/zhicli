@@ -86,6 +86,7 @@ class Context:
     on_waiting_done: Callable[[], None] | None = None
     on_tool_total: Callable[[int], None] | None = None
     on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None
+    on_ask_user: Callable[[str, list[str] | None], str] | None = None
     # File counters for summary line
     files_read: int = 0
     files_written: int = 0

@@ -42,6 +42,7 @@ class SkillTool:
         permission_mode: PermissionMode = PermissionMode.APPROVE,
         permission_mode_getter: Callable[[], PermissionMode] | None = None,
         on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None,
+        on_ask_user: Callable[[str, list[str] | None], str] | None = None,
     ) -> None:
         self._skill = skill
         self._client = client
@@ -51,6 +52,7 @@ class SkillTool:
         self._permission_mode = permission_mode
         self._permission_mode_getter = permission_mode_getter
         self._on_permission = on_permission
+        self._on_ask_user = on_ask_user
 
     def _get_permission_mode(self) -> PermissionMode:
         """Read permission_mode from getter (live) or fall back to stored value."""
@@ -169,6 +171,15 @@ class SkillTool:
         new_depth = self._depth + 1
 
         for tool_name in self._skill.tools:
+            # Handle ask_user specially — create with current callback
+            if tool_name == "ask_user":
+                from zhi.tools.ask_user import AskUserTool
+
+                ask_tool = AskUserTool(callback=self._on_ask_user)
+                inner_tools["ask_user"] = ask_tool
+                inner_schemas.append(ask_tool.to_function_schema())
+                continue
+
             # Check if it's a skill tool reference (with or without prefix)
             resolved_name = tool_name
             if not tool_name.startswith(_SKILL_TOOL_PREFIX):
@@ -193,6 +204,7 @@ class SkillTool:
                     permission_mode=current_permission_mode,
                     permission_mode_getter=self._permission_mode_getter,
                     on_permission=self._on_permission,
+                    on_ask_user=self._on_ask_user,
                 )
                 inner_tools[child.name] = child
                 inner_schemas.append(child.to_function_schema())
@@ -265,6 +277,7 @@ class SkillTool:
             thinking_enabled=False,
             streaming=False,  # Nested skills use buffered mode
             on_permission=self._on_permission,
+            on_ask_user=self._on_ask_user,
         )
 
         try:

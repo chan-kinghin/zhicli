@@ -59,6 +59,7 @@ class ToolRegistry:
 def create_default_registry(
     *,
     output_dir: Any | None = None,
+    ask_user_callback: Any | None = None,
 ) -> ToolRegistry:
     """Create a registry with all built-in tools.
 
@@ -68,7 +69,9 @@ def create_default_registry(
 
     Args:
         output_dir: Optional output directory for FileWriteTool.
+        ask_user_callback: Optional callback for AskUserTool.
     """
+    from zhi.tools.ask_user import AskUserTool
     from zhi.tools.file_list import FileListTool
     from zhi.tools.file_read import FileReadTool
     from zhi.tools.file_write import FileWriteTool
@@ -84,6 +87,7 @@ def create_default_registry(
         registry.register(FileWriteTool())
     registry.register(FileListTool())
     registry.register(WebFetchTool())
+    registry.register(AskUserTool(callback=ask_user_callback))
     return registry
 
 
@@ -94,6 +98,7 @@ def register_skill_tools(
     *,
     on_permission: Any | None = None,
     permission_mode_getter: Any | None = None,
+    on_ask_user: Any | None = None,
 ) -> None:
     """Wrap each discovered SkillConfig as a SkillTool and register it.
 
@@ -106,6 +111,7 @@ def register_skill_tools(
         client: The Zhipu API client (passed to nested agent loops).
         on_permission: Permission callback for risky tool checks in nested skills.
         permission_mode_getter: Callable returning current PermissionMode.
+        on_ask_user: Callback for AskUserTool in nested skills.
     """
     from zhi.tools.skill_tool import SkillTool
 
@@ -116,6 +122,7 @@ def register_skill_tools(
             registry=registry,
             on_permission=on_permission,
             permission_mode_getter=permission_mode_getter,
+            on_ask_user=on_ask_user,
         )
         try:
             registry.register(tool)

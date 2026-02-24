@@ -463,6 +463,22 @@ class ReplSession:
             )
         conversation.append({"role": Role.USER.value, "content": user_content})
 
+        def _ask_user_repl(question: str, options: list[str] | None) -> str:
+            """Prompt the user for input during skill execution."""
+            from prompt_toolkit import prompt as pt_prompt
+
+            self._ui.stream_end()
+            self._ui.print(f"\n? {question}")
+            if options:
+                for i, opt in enumerate(options, 1):
+                    self._ui.print(f"  {i}. {opt}")
+            answer = pt_prompt("> ")
+            if options and answer.strip().isdigit():
+                idx = int(answer.strip()) - 1
+                if 0 <= idx < len(options):
+                    return options[idx]
+            return answer.strip()
+
         skill_context = Context(
             config=self._context.config,
             client=self._context.client,
@@ -482,6 +498,7 @@ class ReplSession:
                 tool.name,
                 safe_parse_args(call["function"]["arguments"]),
             ),
+            on_ask_user=_ask_user_repl,
             on_waiting=self._ui.show_waiting,
             on_waiting_done=self._ui.clear_waiting,
         )

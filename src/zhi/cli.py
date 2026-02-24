@@ -123,8 +123,24 @@ def _build_context(
     from zhi.tools.shell import ShellTool
     from zhi.tools.skill_create import SkillCreateTool
 
+    def _ask_user_cli(question: str, options: list[str] | None) -> str:
+        """Prompt the user for input during agent execution."""
+        ui.print(f"\n? {question}")
+        if options:
+            for i, opt in enumerate(options, 1):
+                ui.print(f"  {i}. {opt}")
+        answer = input("> ")
+        if options and answer.strip().isdigit():
+            idx = int(answer.strip()) - 1
+            if 0 <= idx < len(options):
+                return options[idx]
+        return answer.strip()
+
     client = Client(api_key=config.api_key)
-    registry = create_default_registry(output_dir=config.output_dir)
+    registry = create_default_registry(
+        output_dir=config.output_dir,
+        ask_user_callback=_ask_user_cli,
+    )
 
     # Register tools that need runtime dependencies.
     # ShellTool's own callback auto-approves because the agent loop already
@@ -158,6 +174,7 @@ def _build_context(
         client,
         on_permission=on_permission,
         permission_mode_getter=permission_mode_getter,
+        on_ask_user=_ask_user_cli,
     )
 
     # Register skill_create so the LLM can create new user skills
@@ -200,6 +217,7 @@ def _build_context(
         on_tool_end=ui.show_tool_end,
         on_tool_total=ui.set_tool_total,
         on_permission=on_permission,
+        on_ask_user=_ask_user_cli,
         on_waiting=ui.show_waiting,
         on_waiting_done=ui.clear_waiting,
     )

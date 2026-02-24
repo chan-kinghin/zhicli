@@ -54,7 +54,7 @@ def discover_skills(
 
 
 def _scan_directory(directory: Path, source: str) -> dict[str, SkillConfig]:
-    """Scan a directory for skill YAML files.
+    """Scan a directory for skill YAML files and SKILL.md directories.
 
     Skips corrupted files with a warning instead of raising.
     """
@@ -63,6 +63,7 @@ def _scan_directory(directory: Path, source: str) -> dict[str, SkillConfig]:
     if not directory.is_dir():
         return skills
 
+    # 1. Scan for YAML files (existing behaviour)
     try:
         yaml_paths = sorted(directory.glob("*.yaml"))
     except OSError as exc:
@@ -79,5 +80,27 @@ def _scan_directory(directory: Path, source: str) -> dict[str, SkillConfig]:
                 stacklevel=2,
             )
             logger.debug("Failed to load skill %s: %s", yaml_path, exc)
+
+    # 2. Scan for SKILL.md directories (new behaviour)
+    try:
+        for subdir in sorted(directory.iterdir()):
+            if not subdir.is_dir():
+                continue
+            skill_md_path = subdir / "SKILL.md"
+            if skill_md_path.is_file():
+                try:
+                    from zhi.skills.loader_md import load_skill_md
+
+                    config = load_skill_md(skill_md_path, source=source)
+                    # SKILL.md overrides YAML with the same name
+                    skills[config.name] = config
+                except Exception as exc:
+                    warnings.warn(
+                        f"Skipping corrupted skill directory {subdir}: {exc}",
+                        stacklevel=2,
+                    )
+                    logger.debug("Failed to load SKILL.md in %s: %s", subdir, exc)
+    except OSError as exc:
+        logger.warning("Cannot scan for SKILL.md dirs in %s: %s", directory, exc)
 
     return skills
