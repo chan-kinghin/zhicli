@@ -240,11 +240,20 @@ class SkillTool:
         # on the LLM to forward paths correctly)
         user_input = kwargs.get("input", "")
 
-        file_arg_names = {
-            arg["name"]
+        file_args = {
+            arg["name"]: arg
             for arg in self._skill.input_args
             if arg.get("name") and arg.get("type") == "file"
         }
+
+        # Fail fast: reject empty required file args before making API calls
+        for arg_name, arg_def in file_args.items():
+            value = kwargs.get(arg_name, "")
+            if arg_def.get("required") and not value:
+                return (
+                    f"Error: Required file argument '{arg_name}' is empty. "
+                    f"Please provide the full file path."
+                )
 
         file_sections: list[str] = []
         non_file_extras: dict[str, Any] = {}
@@ -252,7 +261,7 @@ class SkillTool:
         for k, v in kwargs.items():
             if k == "input":
                 continue
-            if k in file_arg_names:
+            if k in file_args:
                 if v:  # Non-empty file path — read and inject content
                     att = self._read_file(str(v))
                     if att.error:
@@ -263,7 +272,7 @@ class SkillTool:
                         file_sections.append(
                             f"--- File ({k}): {att.filename} ---\n{att.content}"
                         )
-                # Skip empty file args entirely — don't inject noise
+                # Skip empty optional file args — don't inject noise
             else:
                 non_file_extras[k] = v
 

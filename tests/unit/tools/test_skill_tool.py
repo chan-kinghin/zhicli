@@ -231,8 +231,8 @@ class TestSkillToolExecution:
 
             os.unlink(fpath)
 
-    def test_empty_file_arg_not_injected(self) -> None:
-        """Empty file-type args are skipped — no 'Additional arguments: {file: }'."""
+    def test_empty_required_file_arg_returns_error(self) -> None:
+        """Empty required file-type args fail fast with a clear error."""
         client = _make_client()
         registry = _make_registry_with_fake()
         skill = _make_skill(
@@ -242,11 +242,28 @@ class TestSkillToolExecution:
         )
         tool = SkillTool(skill=skill, client=client, registry=registry)
 
+        result = tool.execute(input="Analyze this", file="")
+        assert "Error" in result
+        assert "'file'" in result
+        assert "empty" in result.lower()
+        # Should NOT have made an API call
+        client.chat.assert_not_called()
+
+    def test_empty_optional_file_arg_not_injected(self) -> None:
+        """Empty optional file-type args are skipped — no noise in user message."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(
+            input_args=[
+                {"name": "file", "type": "file", "required": False},
+            ]
+        )
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
         tool.execute(input="Analyze this", file="")
         call_args = client.chat.call_args
         messages = call_args.kwargs["messages"]
         user_msg = next(m for m in messages if m["role"] == "user")
-        # Should NOT contain empty file args as noise
         assert "Additional arguments" not in user_msg["content"]
         assert "'file': ''" not in user_msg["content"]
 
