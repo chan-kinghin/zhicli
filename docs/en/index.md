@@ -60,7 +60,7 @@ zhi is an open-source command-line tool that brings Zhipu GLM models to your ter
 
 - :material-shield-check: **Security First**
 
-    Output isolation to zhi-output/, path traversal protection, shell command confirmation
+    No delete capability exists in the architecture — your files can never be removed or overwritten. All output is isolated to zhi-output/, with path traversal protection and shell command confirmation
 
 </div>
 

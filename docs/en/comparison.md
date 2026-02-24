@@ -127,6 +127,12 @@ Skills are composable YAML configurations, not hardcoded features. You can:
 - Compose skills together (e.g., `contract-review` uses `analyze` + `compare` + `proofread`)
 - Share skills as `.yaml` files
 
+### Safety by Design
+
+zhi cannot delete your files — not because of a setting you might forget to enable, but because **no delete capability exists in the architecture**. There is no delete tool, no overwrite mode, and no way for the AI to remove or modify your original files. Safety is enforced in code, not in prompts — so it cannot be lost during context compression or ignored by the model.
+
+This is a deliberate design choice: AI agents should never be able to cause irreversible damage to your data.
+
 ### Output Isolation
 
 Unlike tools that edit files in-place, zhi writes all output to an isolated `zhi-output/` directory. Your original files are never modified, making it safe to experiment without risk.
