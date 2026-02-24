@@ -62,22 +62,26 @@ class SkillCreateTool(BaseTool):
         self,
         skills_dir: Path,
         known_tool_names: list[str] | None = None,
+        *,
+        default_model: str = "glm-4-flash",
     ) -> None:
         """Initialize skill_create tool.
 
         Args:
             skills_dir: Directory to save skill YAML files.
             known_tool_names: List of valid tool names for validation.
+            default_model: Default model for new skills (from config.skill_model).
         """
         self._skills_dir = skills_dir
         self._known_tool_names = known_tool_names or []
+        self._default_model = default_model
 
     def execute(self, **kwargs: Any) -> str:
         skill_name: str = kwargs.get("name", "")
         description: str = kwargs.get("description", "")
         system_prompt: str = kwargs.get("system_prompt", "")
         tools: list[str] = kwargs.get("tools", [])
-        model: str = kwargs.get("model", "glm-4-flash")
+        model: str = kwargs.get("model", self._default_model)
         max_turns: int = kwargs.get("max_turns", 15)
 
         # Validate name

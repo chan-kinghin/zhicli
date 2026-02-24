@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
-from zhi.skills import discover_skills
+from zhi.skills import _scan_directory, discover_skills
 
 
 def _write_skill(directory: Path, name: str, description: str = "Test") -> Path:
@@ -107,3 +108,21 @@ class TestDiscoverSkills:
         assert "translate" in skills
         assert skills["summarize"].model == "glm-4-flash"
         assert skills["translate"].model == "glm-4-flash"
+
+    def test_scan_directory_oserror_on_glob(self, tmp_path: Path) -> None:
+        """Bug 10: OSError on glob() should return empty dict, not crash."""
+        skills_dir = tmp_path / "skills"
+        skills_dir.mkdir()
+        _write_skill(skills_dir, "good-skill")
+
+        orig_glob = Path.glob
+
+        def patched_glob(self_path: Path, pattern: str) -> list[Path]:
+            if self_path == skills_dir:
+                raise PermissionError("Permission denied")
+            return list(orig_glob(self_path, pattern))
+
+        with patch.object(Path, "glob", patched_glob):
+            result = _scan_directory(skills_dir, source="user")
+
+        assert result == {}  # Graceful empty, no crash

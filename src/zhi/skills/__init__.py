@@ -63,7 +63,13 @@ def _scan_directory(directory: Path, source: str) -> dict[str, SkillConfig]:
     if not directory.is_dir():
         return skills
 
-    for yaml_path in sorted(directory.glob("*.yaml")):
+    try:
+        yaml_paths = sorted(directory.glob("*.yaml"))
+    except OSError as exc:
+        logger.warning("Cannot scan skill directory %s: %s", directory, exc)
+        return skills
+
+    for yaml_path in yaml_paths:
         try:
             config = load_skill(yaml_path, source=source)
             skills[config.name] = config

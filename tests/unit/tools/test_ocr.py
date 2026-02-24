@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 from zhi.tools.ocr import OcrTool
 
@@ -139,3 +140,43 @@ class TestOcrMissingFile:
         tool = OcrTool(client=client, working_dir=tmp_path)
         result = tool.execute(path="")
         assert "Error" in result
+
+
+class TestOcrOSError:
+    """Bug 16: OSError on path operations should be handled gracefully."""
+
+    def test_oserror_on_resolve(self, tmp_path: Path) -> None:
+        """OSError during path resolution is caught."""
+        client = MockOcrClient()
+        tool = OcrTool(client=client, working_dir=tmp_path)
+
+        orig_resolve = Path.resolve
+
+        def patched_resolve(self_path: Path, *a: Any, **kw: Any) -> Path:
+            if "network_mount" in str(self_path):
+                raise OSError("Network timeout")
+            return orig_resolve(self_path, *a, **kw)
+
+        with patch.object(Path, "resolve", patched_resolve):
+            result = tool.execute(path="network_mount/doc.pdf")
+
+        assert "Error" in result
+        assert "Cannot access" in result
+
+    def test_oserror_on_exists(self, tmp_path: Path) -> None:
+        """OSError during exists() is caught by the path access block."""
+        client = MockOcrClient()
+        tool = OcrTool(client=client, working_dir=tmp_path)
+
+        orig_exists = Path.exists
+
+        def patched_exists(self_path: Path, *a: Any, **kw: Any) -> bool:
+            if self_path.name == "doc.pdf":
+                raise OSError("I/O error")
+            return orig_exists(self_path, *a, **kw)
+
+        with patch.object(Path, "exists", patched_exists):
+            result = tool.execute(path="doc.pdf")
+
+        assert "Error" in result
+        assert "Cannot access path" in result

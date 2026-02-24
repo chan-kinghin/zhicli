@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
-from zhi.agent import Context, PermissionMode, Role
+from zhi.agent import Context, PermissionMode, Role, ToolLike
 from zhi.agent import run as agent_run
 from zhi.i18n import prepend_preamble
 
@@ -39,6 +40,8 @@ class SkillTool:
         call_stack: frozenset[str] = frozenset(),
         depth: int = 0,
         permission_mode: PermissionMode = PermissionMode.APPROVE,
+        permission_mode_getter: Callable[[], PermissionMode] | None = None,
+        on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None,
     ) -> None:
         self._skill = skill
         self._client = client
@@ -46,6 +49,14 @@ class SkillTool:
         self._call_stack = call_stack
         self._depth = depth
         self._permission_mode = permission_mode
+        self._permission_mode_getter = permission_mode_getter
+        self._on_permission = on_permission
+
+    def _get_permission_mode(self) -> PermissionMode:
+        """Read permission_mode from getter (live) or fall back to stored value."""
+        if self._permission_mode_getter is not None:
+            return self._permission_mode_getter()
+        return self._permission_mode
 
     # -- Registrable protocol --------------------------------------------------
 
@@ -105,12 +116,20 @@ class SkillTool:
         Uses the same extraction logic as chat file attachments — text files
         are read directly, xlsx/pdf/images go through the Zhipu API.
         """
-        from zhi.files import _extract_one
+        from zhi.files import FileAttachment, _extract_one
 
-        path = Path(path_str).expanduser()
-        if not path.is_absolute():
-            path = Path.cwd() / path
-        path = path.resolve()
+        try:
+            path = Path(path_str).expanduser()
+            if not path.is_absolute():
+                path = Path.cwd() / path
+            path = path.resolve()
+        except (OSError, ValueError) as exc:
+            return FileAttachment(
+                path=Path(path_str),
+                filename=Path(path_str).name,
+                content="",
+                error=f"Invalid path: {exc}",
+            )
 
         return _extract_one(path, self._client)
 
@@ -139,6 +158,9 @@ class SkillTool:
             logger.warning(msg)
             return f"Error: {msg}"
 
+        # Read current permission mode (live, not frozen)
+        current_permission_mode = self._get_permission_mode()
+
         # Build inner tool set from the skill's tool list
         inner_tools: dict[str, Any] = {}
         inner_schemas: list[dict[str, Any]] = []
@@ -161,14 +183,16 @@ class SkillTool:
 
             existing = self._registry.get(resolved_name)
             if existing is not None and isinstance(existing, SkillTool):
-                # Re-wrap with updated call stack, depth, and permission mode
+                # Re-wrap with updated call stack, depth, and permission
                 child = SkillTool(
                     skill=existing._skill,
                     client=self._client,
                     registry=self._registry,
                     call_stack=new_call_stack,
                     depth=new_depth,
-                    permission_mode=self._permission_mode,
+                    permission_mode=current_permission_mode,
+                    permission_mode_getter=self._permission_mode_getter,
+                    on_permission=self._on_permission,
                 )
                 inner_tools[child.name] = child
                 inner_schemas.append(child.to_function_schema())
@@ -235,11 +259,12 @@ class SkillTool:
             model=self._skill.model,
             tools=inner_tools,
             tool_schemas=inner_schemas,
-            permission_mode=self._permission_mode,
+            permission_mode=current_permission_mode,
             conversation=conversation,
             max_turns=self._skill.max_turns,
             thinking_enabled=False,
             streaming=False,  # Nested skills use buffered mode
+            on_permission=self._on_permission,
         )
 
         try:

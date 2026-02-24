@@ -56,12 +56,18 @@ class ToolRegistry:
         ]
 
 
-def create_default_registry() -> ToolRegistry:
+def create_default_registry(
+    *,
+    output_dir: Any | None = None,
+) -> ToolRegistry:
     """Create a registry with all built-in tools.
 
     Note: Some tools require runtime dependencies (client, callbacks).
     This creates the file-based tools that don't need external deps.
     Tools requiring external deps (ocr, shell) must be registered separately.
+
+    Args:
+        output_dir: Optional output directory for FileWriteTool.
     """
     from zhi.tools.file_list import FileListTool
     from zhi.tools.file_read import FileReadTool
@@ -70,7 +76,12 @@ def create_default_registry() -> ToolRegistry:
 
     registry = ToolRegistry()
     registry.register(FileReadTool())
-    registry.register(FileWriteTool())
+    if output_dir is not None:
+        from pathlib import Path
+
+        registry.register(FileWriteTool(output_dir=Path(output_dir)))
+    else:
+        registry.register(FileWriteTool())
     registry.register(FileListTool())
     registry.register(WebFetchTool())
     return registry
@@ -80,6 +91,9 @@ def register_skill_tools(
     registry: ToolRegistry,
     skills: dict[str, Any],
     client: Any,
+    *,
+    on_permission: Any | None = None,
+    permission_mode_getter: Any | None = None,
 ) -> None:
     """Wrap each discovered SkillConfig as a SkillTool and register it.
 
@@ -90,11 +104,19 @@ def register_skill_tools(
         registry: The tool registry to populate.
         skills: Dict mapping skill name to SkillConfig.
         client: The Zhipu API client (passed to nested agent loops).
+        on_permission: Permission callback for risky tool checks in nested skills.
+        permission_mode_getter: Callable returning current PermissionMode.
     """
     from zhi.tools.skill_tool import SkillTool
 
     for _name, skill_config in skills.items():
-        tool = SkillTool(skill=skill_config, client=client, registry=registry)
+        tool = SkillTool(
+            skill=skill_config,
+            client=client,
+            registry=registry,
+            on_permission=on_permission,
+            permission_mode_getter=permission_mode_getter,
+        )
         try:
             registry.register(tool)
         except ValueError:

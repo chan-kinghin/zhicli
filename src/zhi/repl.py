@@ -121,7 +121,7 @@ class _ZhiCompleter(Completer):
                     yield Completion(name, start_position=-len(prefix))
         elif text.startswith("/skill "):
             prefix = text[len("/skill ") :]
-            for sub in ["list", "show", "edit", "delete"]:
+            for sub in ["list", "new", "show", "edit", "delete"]:
                 if sub.startswith(prefix):
                     yield Completion(sub, start_position=-len(prefix))
         elif text.startswith("/"):
@@ -227,7 +227,14 @@ class ReplSession:
 
     def handle_input(self, text: str) -> str | None:
         """Handle user input: detect files, dispatch commands, or send to agent."""
-        # Preprocess: detect and extract file paths before command dispatch
+        # Dispatch slash commands FIRST — before extract_files, so that
+        # /run receives the original text with real file paths intact.
+        if text.startswith("/"):
+            first_word = text.split(maxsplit=1)[0].lower()
+            if first_word in _SLASH_COMMANDS:
+                return self._handle_command(text)
+
+        # Extract files only for chat input (not slash commands)
         cleaned_text, attachments = extract_files(text, self._context.client)
 
         # Show feedback if files were attached
@@ -241,10 +248,6 @@ class ReplSession:
                     t("files.extract_error", path=att.filename, error=att.error)
                 )
 
-        if cleaned_text.startswith("/"):
-            first_word = cleaned_text.split(maxsplit=1)[0].lower()
-            if first_word in _SLASH_COMMANDS:
-                return self._handle_command(cleaned_text)
         return self._handle_chat(cleaned_text, attachments=attachments)
 
     def _handle_command(self, text: str) -> str | None:
@@ -375,7 +378,23 @@ class ReplSession:
             self._ui.print(msg)
             return msg
 
-        parts = args.strip().split()
+        # Use shlex to properly handle quoted paths and escaped spaces:
+        #   /run compare "file one.xlsx" file2.xlsx
+        #   /run compare file\ one.xlsx file2.xlsx
+        import shlex
+
+        try:
+            parts = shlex.split(args.strip())
+        except ValueError as exc:
+            msg = t("repl.run_parse_error", error=str(exc))
+            self._ui.print(msg)
+            return msg
+
+        if not parts:
+            msg = t("repl.run_usage")
+            self._ui.print(msg)
+            return msg
+
         skill_name = parts[0]
         files = parts[1:]
 
@@ -409,11 +428,15 @@ class ReplSession:
         from zhi.tools import ToolRegistry, register_skill_tools
 
         skill_registry = ToolRegistry()
-        # Register base tools the skill needs
+        # Register base tools the skill needs (warn on missing — Bug 8)
         for tool_name in skill.tools:
             existing = self._context.tools.get(tool_name)
             if existing is not None:
                 skill_registry.register(existing)
+            else:
+                self._ui.show_warning(
+                    f"Skill '{skill_name}' references unknown tool '{tool_name}'"
+                )
 
         # Also register skill-tools for composition
         register_skill_tools(skill_registry, skills, self._context.client)
@@ -426,7 +449,9 @@ class ReplSession:
             if st is not None:
                 skill_tools[prefixed] = st
 
-        skill_schemas = [t.to_function_schema() for t in skill_tools.values()]
+        skill_schemas = [
+            tool_obj.to_function_schema() for tool_obj in skill_tools.values()
+        ]
 
         conversation: list[dict[str, Any]] = []
         if skill.system_prompt:
@@ -461,6 +486,16 @@ class ReplSession:
             on_waiting_done=self._ui.clear_waiting,
         )
 
+        # Wire cancel_event from the main context so ESC works (Bug 9)
+        skill_context.cancel_event = self._context.cancel_event
+
+        # Set up ESC watcher for skill runs (same as _handle_chat)
+        self._context.cancel_event.clear()
+        stop_event: threading.Event | None = None
+        if sys.stdin.isatty():
+            stop_event = self._start_esc_watcher(self._context.cancel_event)
+
+        t0 = time.monotonic()
         try:
             result = agent_run(skill_context)
         except (KeyboardInterrupt, AgentInterruptedError):
@@ -472,8 +507,13 @@ class ReplSession:
             self._ui.print(msg)
             return msg
         finally:
+            # Stop the ESC watcher thread
+            if stop_event is not None:
+                stop_event.set()
+            self._context.cancel_event.clear()
             # Merge skill token usage back into the main session
             self._context.session_tokens += skill_context.session_tokens
+        elapsed = time.monotonic() - t0
 
         if result is None:
             msg = t("repl.skill_max_turns", skill=skill_name)
@@ -481,6 +521,15 @@ class ReplSession:
             return msg
 
         self._ui.stream_end()
+
+        # Show file summary after skill runs (Bug 17)
+        if skill_context.files_read or skill_context.files_written:
+            self._ui.show_summary(
+                files_read=skill_context.files_read,
+                files_written=skill_context.files_written,
+                elapsed=elapsed,
+            )
+
         return result
 
     def _handle_skill(self, args: str = "") -> str:
@@ -539,7 +588,7 @@ class ReplSession:
                 msg = t("repl.skill_not_found", name=name)
                 self._ui.print(msg)
                 return msg
-            msg = "Editing skills is not yet supported. Edit the YAML file directly."
+            msg = t("repl.skill_edit_todo")
             self._ui.print(msg)
             return msg
         elif subcommand == "delete":
@@ -553,7 +602,7 @@ class ReplSession:
                 msg = t("repl.skill_not_found", name=name)
                 self._ui.print(msg)
                 return msg
-            msg = "Deleting skills is not yet supported."
+            msg = t("repl.skill_delete_todo")
             self._ui.print(msg)
             return msg
         else:

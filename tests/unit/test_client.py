@@ -369,6 +369,30 @@ class TestOCR:
             client.ocr(Path("/nonexistent/file.pdf"))
 
     @patch("zhi.client.ZhipuAI")
+    def test_file_extract_oserror_on_exists(
+        self, mock_sdk_cls: MagicMock, tmp_path: Path
+    ) -> None:
+        """Bug 11: OSError on exists()/stat() converted to ClientError."""
+        test_file = tmp_path / "network.pdf"
+        test_file.write_bytes(b"%PDF content")
+
+        client = Client(api_key="sk-test")
+
+        orig_exists = Path.exists
+
+        def patched_exists(self_path: Path) -> bool:
+            if self_path.name == "network.pdf":
+                raise OSError("Network timeout")
+            return orig_exists(self_path)
+
+        with (
+            patch.object(Path, "exists", patched_exists),
+            pytest.raises(ClientError) as exc_info,
+        ):
+            client.file_extract(test_file)
+        assert exc_info.value.code == "FILE_ACCESS_ERROR"
+
+    @patch("zhi.client.ZhipuAI")
     def test_ocr_unsupported_format(
         self, mock_sdk_cls: MagicMock, tmp_path: Path
     ) -> None:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, ClassVar
 from unittest.mock import MagicMock, patch
 
@@ -246,6 +247,31 @@ class TestSkillToolExecution:
         assert "Additional arguments" not in user_msg["content"]
         assert "'file': ''" not in user_msg["content"]
 
+    def test_read_file_oserror_returns_attachment_with_error(self) -> None:
+        """Bug 15: OSError on path resolution returns FileAttachment with error."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(
+            input_args=[
+                {"name": "file", "type": "file", "required": True},
+            ]
+        )
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        # Patch Path.resolve to raise OSError for our test path
+        orig_resolve = Path.resolve
+
+        def patched_resolve(self_path: Path, *a: Any, **kw: Any) -> Path:
+            if "network_mount" in str(self_path):
+                raise OSError("Network timeout")
+            return orig_resolve(self_path, *a, **kw)
+
+        with patch.object(Path, "resolve", patched_resolve):
+            att = tool._read_file("/network_mount/data.xlsx")
+
+        assert att.error is not None
+        assert "Invalid path" in att.error
+
 
 # ── Recursion Prevention ─────────────────────────────────────────────
 
@@ -296,6 +322,41 @@ class TestSkillToolRecursion:
         )
         result = tool.execute(input="test")
         assert "max depth" in result.lower()
+
+    def test_permission_mode_getter_used_in_execute(self) -> None:
+        """Bug 3: SkillTool reads live permission mode via getter."""
+        from zhi.agent import PermissionMode
+
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        getter = MagicMock(return_value=PermissionMode.AUTO)
+        tool = SkillTool(
+            skill=_make_skill(),
+            client=client,
+            registry=registry,
+            permission_mode_getter=getter,
+        )
+        assert tool._get_permission_mode() == PermissionMode.AUTO
+        getter.assert_called_once()
+
+    def test_on_permission_propagated_to_context(self) -> None:
+        """Bug 1: on_permission callback reaches nested Context."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        cb = MagicMock(return_value=True)
+        tool = SkillTool(
+            skill=_make_skill(),
+            client=client,
+            registry=registry,
+            on_permission=cb,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        # Check that the Context passed to agent_run has on_permission set
+        ctx_arg = mock_run.call_args.args[0]
+        assert ctx_arg.on_permission is cb
 
     def test_depth_within_limit_allowed(self) -> None:
         """Nesting at depth < _MAX_DEPTH proceeds normally."""
@@ -352,6 +413,32 @@ class TestRegisterSkillTools:
         schemas = registry.to_schemas()
         names = [s["function"]["name"] for s in schemas]
         assert "skill_summarize" in names
+
+    def test_passes_permission_callback(self) -> None:
+        """Bug 1: register_skill_tools forwards on_permission."""
+        registry = _make_registry_with_fake()
+        skills = {"summarize": _make_skill(name="summarize")}
+        client = _make_client()
+
+        cb = MagicMock(return_value=True)
+        register_skill_tools(registry, skills, client, on_permission=cb)
+
+        tool = registry.get("skill_summarize")
+        assert isinstance(tool, SkillTool)
+        assert tool._on_permission is cb
+
+    def test_passes_permission_mode_getter(self) -> None:
+        """Bug 3: register_skill_tools forwards permission_mode_getter."""
+        registry = _make_registry_with_fake()
+        skills = {"summarize": _make_skill(name="summarize")}
+        client = _make_client()
+
+        getter = MagicMock(return_value=MagicMock())
+        register_skill_tools(registry, skills, client, permission_mode_getter=getter)
+
+        tool = registry.get("skill_summarize")
+        assert isinstance(tool, SkillTool)
+        assert tool._permission_mode_getter is getter
 
     def test_duplicate_skill_name_skipped(self) -> None:
         """If a skill tool name collides, it's skipped with a warning."""

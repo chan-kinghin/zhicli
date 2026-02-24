@@ -44,10 +44,11 @@ def find_file_paths(text: str) -> list[Path]:
 
         try:
             resolved = candidate.resolve()
+            is_file = resolved.is_file()
         except (OSError, ValueError):
             continue
 
-        if resolved.is_file() and resolved not in seen:
+        if is_file and resolved not in seen:
             paths.append(resolved)
             seen.add(resolved)
 

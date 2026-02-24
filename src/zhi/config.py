@@ -82,7 +82,7 @@ def load_config(config_dir: Path | None = None) -> ZhiConfig:
                 data = raw
             else:
                 logger.warning("Config file is not a YAML mapping, using defaults")
-        except yaml.YAMLError as exc:
+        except (yaml.YAMLError, OSError) as exc:
             logger.warning("Failed to parse config file: %s", exc)
 
     # Apply env var overrides

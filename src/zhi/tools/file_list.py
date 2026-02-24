@@ -97,7 +97,8 @@ class FileListTool(BaseTool):
             return f"Error: Not a directory: {path_str}"
 
         lines: list[str] = []
-        self._list_dir(resolved, "", max_depth, 0, lines)
+        visited: set[Path] = set()
+        self._list_dir(resolved, "", max_depth, 0, lines, visited)
 
         if not lines:
             return f"Directory is empty: {path_str}"
@@ -111,15 +112,31 @@ class FileListTool(BaseTool):
         max_depth: int,
         current_depth: int,
         lines: list[str],
+        visited: set[Path] | None = None,
     ) -> None:
         if current_depth >= max_depth:
             return
 
+        # Track visited real paths for symlink loop detection (Bug 11)
+        if visited is None:
+            visited = set()
+
         try:
-            entries = sorted(
-                dir_path.iterdir(),
-                key=lambda p: (not p.is_dir(), p.name.lower()),
-            )
+            real_dir = dir_path.resolve()
+        except OSError:
+            lines.append(f"{prefix}[access error]")
+            return
+
+        if real_dir in visited:
+            lines.append(f"{prefix}[symlink loop]")
+            return
+        visited.add(real_dir)
+
+        try:
+            # Sort by name only — no I/O in the sort key. Calling p.is_dir()
+            # during sort can hang on network-mounted entries before the
+            # _SKIP_DIRS check gets a chance to filter them out.
+            entries = sorted(dir_path.iterdir(), key=lambda p: p.name.lower())
         except OSError:
             # Catches PermissionError, TimeoutError (network mounts), etc.
             lines.append(f"{prefix}[access error]")
@@ -150,4 +167,5 @@ class FileListTool(BaseTool):
                     max_depth,
                     current_depth + 1,
                     lines,
+                    visited,
                 )

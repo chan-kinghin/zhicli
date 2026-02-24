@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 from zhi.files import extract_files, find_file_paths
 
@@ -72,6 +72,24 @@ class TestFindFilePaths:
         text = "visit https://example.com/page.html"
         paths = find_file_paths(text)
         assert paths == []
+
+    def test_is_file_oserror_skipped(self, tmp_path: Path) -> None:
+        """Bug 7: OSError on is_file() should not crash find_file_paths."""
+        f = tmp_path / "network.xlsx"
+        f.write_bytes(b"data")
+        text = f"read {f}"
+
+        orig_is_file = Path.is_file
+
+        def patched_is_file(self_path: Path) -> bool:
+            if self_path.name == "network.xlsx":
+                raise OSError("Network timeout")
+            return orig_is_file(self_path)
+
+        with patch.object(Path, "is_file", patched_is_file):
+            paths = find_file_paths(text)
+
+        assert paths == []  # Skipped gracefully, no crash
 
 
 class TestExtractFiles:

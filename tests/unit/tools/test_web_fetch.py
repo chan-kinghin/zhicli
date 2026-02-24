@@ -168,6 +168,47 @@ class TestWebFetchSSRFRedirect:
         assert result == "Final content"
 
 
+class TestWebFetchDNSRebinding:
+    """Bug 2: DNS rebinding — hostname resolves to private IP."""
+
+    def test_dns_resolving_to_private_ip_blocked(self) -> None:
+        from zhi.tools.web_fetch import _is_private_or_reserved
+
+        # Mock getaddrinfo to return a private IP for evil.com
+        fake_result = [(2, 1, 6, "", ("127.0.0.1", 0))]
+        with patch("zhi.tools.web_fetch.socket.getaddrinfo", return_value=fake_result):
+            assert _is_private_or_reserved("evil.example.com") is True
+
+    def test_dns_resolving_to_public_ip_allowed(self) -> None:
+        from zhi.tools.web_fetch import _is_private_or_reserved
+
+        fake_result = [(2, 1, 6, "", ("93.184.216.34", 0))]
+        with patch("zhi.tools.web_fetch.socket.getaddrinfo", return_value=fake_result):
+            assert _is_private_or_reserved("example.com") is False
+
+    def test_hex_ip_blocked(self) -> None:
+        """Bug 21: Hex/octal IP forms are caught via DNS resolution."""
+        from zhi.tools.web_fetch import _is_private_or_reserved
+
+        # 0x7f000001 should resolve to 127.0.0.1
+        fake_result = [(2, 1, 6, "", ("127.0.0.1", 0))]
+        with patch("zhi.tools.web_fetch.socket.getaddrinfo", return_value=fake_result):
+            assert _is_private_or_reserved("0x7f000001") is True
+
+    def test_dns_lookup_failure_allows_through(self) -> None:
+        """If DNS fails, the hostname is not blocked (connection will fail later)."""
+        import socket as _socket
+
+        from zhi.tools.web_fetch import _is_private_or_reserved
+
+        with patch(
+            "zhi.tools.web_fetch.socket.getaddrinfo",
+            side_effect=_socket.gaierror("Name resolution failed"),
+        ):
+            # Not a known blocked host, not an IP literal → allowed
+            assert _is_private_or_reserved("nonexistent.example.com") is False
+
+
 class TestStripHtmlTags:
     def test_strips_script_tags(self) -> None:
         html = "<script>alert('xss')</script><p>Safe text</p>"

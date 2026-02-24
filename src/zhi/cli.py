@@ -22,34 +22,34 @@ def _build_parser() -> argparse.ArgumentParser:
     """Build the argument parser."""
     parser = argparse.ArgumentParser(
         prog="zhi",
-        description="Agentic CLI powered by Zhipu GLM models",
+        description=t("cli.description"),
     )
     parser.add_argument(
         "--version",
         action="store_true",
-        help="Show version and exit",
+        help=t("cli.version_help"),
     )
     parser.add_argument(
         "-c",
         "--command",
         type=str,
         metavar="MESSAGE",
-        help="One-shot mode: send a single message and exit",
+        help=t("cli.command_help"),
     )
     parser.add_argument(
         "--setup",
         action="store_true",
-        help="Re-run the setup wizard",
+        help=t("cli.setup_help"),
     )
     parser.add_argument(
         "--debug",
         action="store_true",
-        help="Enable debug logging",
+        help=t("cli.debug_help"),
     )
     parser.add_argument(
         "--no-color",
         action="store_true",
-        help="Disable colored output",
+        help=t("cli.nocolor_help"),
     )
     parser.add_argument(
         "--language",
@@ -68,28 +68,39 @@ def _build_parser() -> argparse.ArgumentParser:
 
     run_parser = subparsers.add_parser(
         "run",
-        help="Run a skill",
+        help=t("cli.run_help"),
     )
     run_parser.add_argument(
         "skill",
         type=str,
-        help="Name of the skill to run",
+        help=t("cli.skill_help"),
     )
     run_parser.add_argument(
         "files",
         nargs="*",
-        help="Input files for the skill",
+        help=t("cli.files_help"),
     )
 
     return parser
 
 
-def _setup_logging(debug: bool = False) -> None:
-    """Configure logging level."""
-    level = logging.DEBUG if debug else logging.WARNING
+def _setup_logging(debug: bool = False, *, config_level: str | None = None) -> None:
+    """Configure logging level.
+
+    Args:
+        debug: If True, force DEBUG level (overrides config_level).
+        config_level: Log level from config (e.g. "INFO", "WARNING").
+    """
+    if debug:
+        level = logging.DEBUG
+    elif config_level:
+        level = getattr(logging, config_level.upper(), logging.WARNING)
+    else:
+        level = logging.WARNING
     logging.basicConfig(
         level=level,
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        force=True,
     )
 
 
@@ -106,13 +117,14 @@ def _build_context(
     """Build an agent Context from config and options."""
     from zhi.agent import Context, PermissionMode
     from zhi.client import Client
-    from zhi.skills import discover_skills
+    from zhi.skills import _default_user_skills_dir, discover_skills
     from zhi.tools import create_default_registry, register_skill_tools
     from zhi.tools.ocr import OcrTool
     from zhi.tools.shell import ShellTool
+    from zhi.tools.skill_create import SkillCreateTool
 
     client = Client(api_key=config.api_key)
-    registry = create_default_registry()
+    registry = create_default_registry(output_dir=config.output_dir)
 
     # Register tools that need runtime dependencies.
     # ShellTool's own callback auto-approves because the agent loop already
@@ -120,9 +132,44 @@ def _build_context(
     registry.register(OcrTool(client=client))
     registry.register(ShellTool(permission_callback=lambda _cmd, _destructive: True))
 
+    # Build permission callback (shared with skills via closure)
+    def on_permission(tool: Any, call: dict[str, Any]) -> bool:
+        return ui.ask_permission(
+            tool.name,
+            safe_parse_args(call["function"]["arguments"]),
+        )
+
+    # We'll create a mutable container so SkillTools can read the live
+    # permission_mode even after /auto changes it.
+    # The context object is created below; skills get a getter lambda
+    # that reads from it.
+    context_holder: list[Any] = []
+
+    def permission_mode_getter() -> PermissionMode:
+        if context_holder:
+            return context_holder[0].permission_mode
+        return PermissionMode.APPROVE
+
     # Register discovered skills as callable tools
     skills = discover_skills()
-    register_skill_tools(registry, skills, client)
+    register_skill_tools(
+        registry,
+        skills,
+        client,
+        on_permission=on_permission,
+        permission_mode_getter=permission_mode_getter,
+    )
+
+    # Register skill_create so the LLM can create new user skills
+    user_skills_dir = _default_user_skills_dir()
+    base_tool_names = [n for n in registry.list_names() if not n.startswith("skill_")]
+    registry.register(
+        SkillCreateTool(
+            user_skills_dir,
+            base_tool_names,
+            default_model=config.skill_model,
+        )
+    )
 
     if tool_names is not None:
         tools = registry.filter_by_names(tool_names)
@@ -137,7 +184,7 @@ def _build_context(
     if user_message:
         conversation.append({"role": "user", "content": user_message})
 
-    return Context(
+    context = Context(
         config=config,
         client=client,
         model=model or config.default_model,
@@ -152,13 +199,15 @@ def _build_context(
         on_tool_start=ui.show_tool_start,
         on_tool_end=ui.show_tool_end,
         on_tool_total=ui.set_tool_total,
-        on_permission=lambda tool, call: ui.ask_permission(
-            tool.name,
-            safe_parse_args(call["function"]["arguments"]),
-        ),
+        on_permission=on_permission,
         on_waiting=ui.show_waiting,
         on_waiting_done=ui.clear_waiting,
     )
+
+    # Wire up the context holder so permission_mode_getter works
+    context_holder.append(context)
+
+    return context
 
 
 def _require_api_key(config: Any) -> bool:
@@ -328,7 +377,7 @@ def main(argv: list[str] | None = None) -> None:
     if args.no_color or os.environ.get("NO_COLOR"):
         os.environ["NO_COLOR"] = "1"
 
-    # Handle --debug
+    # Handle --debug (initial, may be overridden after config load)
     _setup_logging(debug=args.debug)
 
     # Handle --language
@@ -352,6 +401,9 @@ def main(argv: list[str] | None = None) -> None:
     from zhi.ui import UI
 
     config = load_config()
+
+    # Re-apply logging with config level (--debug still overrides)
+    _setup_logging(debug=args.debug, config_level=config.log_level)
 
     # Apply language from config
     if not args.language and config.language != "auto":

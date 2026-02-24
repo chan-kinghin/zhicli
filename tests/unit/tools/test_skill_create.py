@@ -163,6 +163,48 @@ class TestSkillCreateNameValidation:
             assert "created" in result.lower(), f"Failed for name: {name}"
 
 
+class TestSkillCreateDefaultModel:
+    def test_default_model_from_config(self, tmp_path: Path) -> None:
+        """Bug 6: default_model param overrides hardcoded glm-4-flash."""
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(
+            skills_dir=skills_dir,
+            known_tool_names=["file_read"],
+            default_model="glm-5",
+        )
+        result = tool.execute(
+            name="myskill",
+            description="desc",
+            system_prompt="prompt",
+            tools=["file_read"],
+        )
+        assert "created" in result.lower()
+
+        data = yaml.safe_load((skills_dir / "myskill.yaml").read_text(encoding="utf-8"))
+        assert data["model"] == "glm-5"
+
+    def test_default_model_overridden_by_explicit_model(self, tmp_path: Path) -> None:
+        """Explicit model kwarg takes precedence over default_model."""
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(
+            skills_dir=skills_dir,
+            default_model="glm-5",
+        )
+        result = tool.execute(
+            name="myskill2",
+            description="desc",
+            system_prompt="prompt",
+            tools=["file_read"],
+            model="glm-4-air",
+        )
+        assert "created" in result.lower()
+
+        data = yaml.safe_load(
+            (skills_dir / "myskill2.yaml").read_text(encoding="utf-8")
+        )
+        assert data["model"] == "glm-4-air"
+
+
 class TestSkillCreateMissingFields:
     def test_missing_description(self, tmp_path: Path) -> None:
         tool = SkillCreateTool(skills_dir=tmp_path)

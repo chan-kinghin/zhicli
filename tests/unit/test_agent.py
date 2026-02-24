@@ -7,7 +7,10 @@ from dataclasses import dataclass, field
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
+
 from zhi.agent import (
+    AgentInterruptedError,
     Context,
     PermissionMode,
     _can_stream,
@@ -570,7 +573,7 @@ class TestAgentArgParsing:
         assert tool.last_kwargs == {"key": "value"}
 
     def test_agent_malformed_json_arguments(self) -> None:
-        """Agent handles malformed JSON arguments gracefully."""
+        """Agent reports malformed JSON arguments back to LLM (Bug 12)."""
         tool = MockTool(name="t", result="ok")
         call = {
             "id": "c1",
@@ -588,8 +591,14 @@ class TestAgentArgParsing:
 
         run(ctx)
 
-        # Should fall back to empty args
-        assert tool.last_kwargs == {}
+        # Tool should NOT be called — error reported as tool result instead
+        assert tool.call_count == 0
+        tool_msgs = [
+            m
+            for m in ctx.conversation
+            if m.get("role") == "tool" and "Invalid JSON" in m.get("content", "")
+        ]
+        assert len(tool_msgs) == 1
 
 
 class TestAgentToolTotal:
@@ -930,3 +939,47 @@ class TestAgentStreaming:
         assert result == "Done!"
         assert tool.call_count == 1
         assert ctx.session_tokens == 30
+
+
+class TestAgentInterruptRollback:
+    """Test conversation rollback on interrupt during tool execution (Bug 18)."""
+
+    def test_conversation_rollback_on_interrupt(self) -> None:
+        """When ESC interrupts mid-tool-execution, conversation rolls back.
+
+        The assistant message (with tool_calls) and any partial tool results
+        are removed, leaving the conversation in a valid state.
+        """
+        tool = MockTool(name="slow_tool", result="ok")
+
+        # First turn: model wants to call a tool
+        responses = [
+            MockResponse(
+                content=None,
+                tool_calls=[
+                    _make_tool_call("slow_tool", call_id="c1"),
+                    _make_tool_call("slow_tool", call_id="c2"),
+                ],
+            ),
+        ]
+        ctx = _make_context(responses, tools={"slow_tool": tool})
+        ctx.conversation = [{"role": "user", "content": "do work"}]
+
+        # Set cancel_event after the first tool call completes
+        original_execute = tool.execute
+
+        def execute_with_cancel(**kwargs: Any) -> str:
+            result = original_execute(**kwargs)
+            # After first tool call, set cancel to interrupt second
+            ctx.cancel_event.set()
+            return result
+
+        tool.execute = execute_with_cancel  # type: ignore[assignment]
+
+        with pytest.raises(AgentInterruptedError):
+            run(ctx)
+
+        # Conversation should be rolled back to just the user message
+        assert len(ctx.conversation) == 1
+        assert ctx.conversation[0]["role"] == "user"
+        assert ctx.conversation[0]["content"] == "do work"

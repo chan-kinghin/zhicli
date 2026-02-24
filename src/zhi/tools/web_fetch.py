@@ -5,6 +5,7 @@ from __future__ import annotations
 import html
 import ipaddress
 import re
+import socket
 from typing import Any, ClassVar
 from urllib.parse import urlparse
 
@@ -25,7 +26,13 @@ _BLOCKED_HOSTS = frozenset(
 
 
 def _is_private_or_reserved(hostname: str) -> bool:
-    """Check if a hostname resolves to a private/reserved IP address."""
+    """Check if a hostname resolves to a private/reserved IP address.
+
+    Performs both string-level checks and DNS resolution to guard against:
+    - Direct IP literals (127.0.0.1, 10.0.0.1)
+    - DNS rebinding (evil.com resolving to 127.0.0.1)
+    - Hex/octal IP forms (0x7f000001 → 127.0.0.1)
+    """
     # Block known dangerous hostnames
     if hostname.lower() in _BLOCKED_HOSTS:
         return True
@@ -35,6 +42,17 @@ def _is_private_or_reserved(hostname: str) -> bool:
         addr = ipaddress.ip_address(hostname)
         return addr.is_private or addr.is_reserved or addr.is_loopback
     except ValueError:
+        pass
+
+    # Resolve hostname and check all resulting IPs (DNS rebinding defense)
+    try:
+        infos = socket.getaddrinfo(hostname, None, proto=socket.IPPROTO_TCP)
+        for _family, _type, _proto, _canonname, sockaddr in infos:
+            ip_str = sockaddr[0]
+            addr = ipaddress.ip_address(ip_str)
+            if addr.is_private or addr.is_reserved or addr.is_loopback:
+                return True
+    except (socket.gaierror, OSError, ValueError):
         pass
 
     return False

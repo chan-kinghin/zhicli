@@ -159,6 +159,25 @@ class TestLoadConfig:
         cfg = load_config(config_dir=tmp_path)
         assert cfg.api_key == ""
 
+    def test_config_oserror_on_read(self, tmp_path: Path) -> None:
+        """Bug 9: OSError on read_text (e.g., permissions) should not crash."""
+        config_file = tmp_path / "config.yaml"
+        config_file.write_text(yaml.dump({"api_key": "sk-test"}))
+
+        # Make the file unreadable by patching read_text
+        orig_read_text = Path.read_text
+
+        def patched_read_text(self_path: Path, *a: Any, **kw: Any) -> str:
+            if self_path.name == "config.yaml":
+                raise PermissionError("Permission denied")
+            return orig_read_text(self_path, *a, **kw)
+
+        with patch.object(Path, "read_text", patched_read_text):
+            cfg = load_config(config_dir=tmp_path)
+
+        # Should fall back to defaults without crashing
+        assert cfg.api_key == ""
+
 
 class TestSaveConfig:
     """Test config saving."""

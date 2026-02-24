@@ -50,16 +50,19 @@ class OcrTool(BaseTool):
         file_path = Path(path_str)
 
         # Allow absolute paths for OCR (files might come from user input)
-        if file_path.is_absolute():
-            resolved = file_path.resolve()
-        else:
-            resolved = (self._working_dir / file_path).resolve()
+        try:
+            if file_path.is_absolute():
+                resolved = file_path.resolve()
+            else:
+                resolved = (self._working_dir / file_path).resolve()
 
-        if not resolved.exists():
-            return f"Error: File not found: {path_str}"
+            if not resolved.exists():
+                return f"Error: File not found: {path_str}"
 
-        if not resolved.is_file():
-            return f"Error: Not a file: {path_str}"
+            if not resolved.is_file():
+                return f"Error: Not a file: {path_str}"
+        except OSError as exc:
+            return f"Error: Cannot access path: {exc}"
 
         # Check extension
         ext = resolved.suffix.lower()
@@ -71,7 +74,10 @@ class OcrTool(BaseTool):
             )
 
         # Check file size
-        file_size = resolved.stat().st_size
+        try:
+            file_size = resolved.stat().st_size
+        except OSError as exc:
+            return f"Error: Cannot read file metadata: {exc}"
         if file_size > _MAX_FILE_SIZE:
             size_mb = file_size / (1024 * 1024)
             return f"Error: File too large for OCR ({size_mb:.1f}MB). Maximum: 20MB."

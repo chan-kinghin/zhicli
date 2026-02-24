@@ -136,6 +136,22 @@ def load_skill(path: Path, *, source: str = "") -> SkillConfig:
             ],
         )
 
+    # Validate description is a string (Bug 16)
+    if not isinstance(data["description"], str):
+        raise SkillError(
+            f"'description' must be a string in {path}",
+            code="SKILL_INVALID_YAML",
+            suggestions=["Provide a text description for the skill"],
+        )
+
+    # Validate system_prompt is a string (Bug 16)
+    if not isinstance(data["system_prompt"], str):
+        raise SkillError(
+            f"'system_prompt' must be a string in {path}",
+            code="SKILL_INVALID_YAML",
+            suggestions=["Provide a text system prompt for the skill"],
+        )
+
     # Validate tools is a list
     tools = data["tools"]
     if not isinstance(tools, list):
@@ -178,13 +194,19 @@ def load_skill(path: Path, *, source: str = "") -> SkillConfig:
         output_description = output_section.get("description", "")
         output_directory = output_section.get("directory", "zhi-output")
 
+    # Validate and clamp max_turns (Bug 10)
+    raw_turns = data.get("max_turns", 15)
+    if not isinstance(raw_turns, int):
+        raw_turns = 15
+    max_turns = max(1, min(raw_turns, 50))
+
     return SkillConfig(
         name=name,
         description=data["description"],
         system_prompt=data["system_prompt"],
         tools=[str(t) for t in tools],
         model=data.get("model", "glm-4-flash"),
-        max_turns=data.get("max_turns", 15),
+        max_turns=max_turns,
         input_args=input_args,
         output_description=output_description,
         output_directory=output_directory,

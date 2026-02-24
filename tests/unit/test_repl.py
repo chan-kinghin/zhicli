@@ -238,6 +238,61 @@ class TestReplRun:
         result = repl.handle_input("/run summarize test.txt")
         assert result is not None
 
+    def test_run_with_absolute_paths_not_mangled(self, tmp_path: Path) -> None:
+        """Bug 4: /run with absolute paths should NOT have paths replaced by
+        extract_files placeholders. The _handle_run method receives real paths."""
+        f = tmp_path / "data.txt"
+        f.write_text("content", encoding="utf-8")
+        repl = _make_repl(tmp_path=tmp_path)
+
+        # Intercept _handle_run to verify it gets the real path
+        captured_args: list[str] = []
+        original = repl._handle_run
+
+        def spy(args: str = "") -> str:
+            captured_args.append(args)
+            return original(args)
+
+        repl._handle_run = spy  # type: ignore[assignment]
+        repl.handle_input(f"/run summarize {f}")
+
+        assert len(captured_args) == 1
+        # The path should be the real path, not a [File N: ...] placeholder
+        assert str(f) in captured_args[0]
+        assert "[File" not in captured_args[0]
+
+    def test_run_shlex_split_quoted_paths(self, tmp_path: Path) -> None:
+        """Bug 6: Paths with spaces should work when quoted."""
+        repl = _make_repl(tmp_path=tmp_path)
+
+        # Intercept _handle_run to check parsing
+        captured_args: list[str] = []
+        original = repl._handle_run
+
+        def spy(args: str = "") -> str:
+            captured_args.append(args)
+            return original(args)
+
+        repl._handle_run = spy  # type: ignore[assignment]
+        repl.handle_input('/run summarize "file with spaces.txt"')
+
+        assert len(captured_args) == 1
+        # shlex.split should be used inside _handle_run to properly parse
+
+    def test_run_shlex_parse_error_returns_message(self, tmp_path: Path) -> None:
+        """Bug 13: Unmatched quotes should return error, not fallback to split()."""
+        repl = _make_repl(tmp_path=tmp_path)
+        result = repl.handle_input('/run compare "unclosed quote')
+        assert result is not None
+        assert "Error" in result or "error" in result.lower()
+
+    def test_run_empty_after_shlex_returns_usage(self, tmp_path: Path) -> None:
+        """Bug 14: Empty result after shlex.split should show usage."""
+        repl = _make_repl(tmp_path=tmp_path)
+        # /run with only whitespace args
+        result = repl.handle_input("/run    ")
+        assert "Usage" in result
+
 
 class TestReplSkill:
     def test_repl_skill_list(self, tmp_path: Path) -> None:

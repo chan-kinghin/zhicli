@@ -237,6 +237,80 @@ class TestLoadSkill:
         assert config.max_turns == 30
 
 
+class TestLoadSkillMaxTurnsValidation:
+    """Bug 10: max_turns must be validated and clamped."""
+
+    def test_max_turns_non_int_defaults_to_15(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "bad_turns.yaml"
+        skill_yaml.write_text(
+            "name: badturns\n"
+            "description: bad turns type\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+            'max_turns: "not a number"\n'
+        )
+        config = load_skill(skill_yaml)
+        assert config.max_turns == 15
+
+    def test_max_turns_clamped_to_50(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "high_turns.yaml"
+        skill_yaml.write_text(
+            "name: highturns\n"
+            "description: too many turns\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+            "max_turns: 999\n"
+        )
+        config = load_skill(skill_yaml)
+        assert config.max_turns == 50
+
+    def test_max_turns_clamped_to_1(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "zero_turns.yaml"
+        skill_yaml.write_text(
+            "name: zeroturns\n"
+            "description: zero turns\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+            "max_turns: 0\n"
+        )
+        config = load_skill(skill_yaml)
+        assert config.max_turns == 1
+
+
+class TestLoadSkillTypeValidation:
+    """Bug 16: description and system_prompt must be strings."""
+
+    def test_description_must_be_string(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "int_desc.yaml"
+        skill_yaml.write_text(
+            "name: intdesc\n"
+            "description: 42\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+        )
+        # YAML parses bare 42 as int, but "42" as string
+        # Force non-string by using a list
+        skill_yaml.write_text(
+            "name: intdesc\n"
+            "description:\n  - not a string\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+        )
+        with pytest.raises(SkillError, match="must be a string"):
+            load_skill(skill_yaml)
+
+    def test_system_prompt_must_be_string(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "list_prompt.yaml"
+        skill_yaml.write_text(
+            "name: listprompt\n"
+            "description: desc\n"
+            "system_prompt:\n  - not a string\n"
+            "tools:\n  - file_read\n"
+        )
+        with pytest.raises(SkillError, match="must be a string"):
+            load_skill(skill_yaml)
+
+
 class TestSkillNamePattern:
     def test_pattern_matches_alphanumeric(self) -> None:
         assert SKILL_NAME_PATTERN.match("abc123")

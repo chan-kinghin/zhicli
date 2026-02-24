@@ -279,8 +279,16 @@ def _execute_tool_calls(context: Context, tool_calls: list[dict[str, Any]]) -> N
                 args = raw_args
             else:
                 args = {}
-        except (json.JSONDecodeError, TypeError):
-            args = {}
+        except (json.JSONDecodeError, TypeError) as parse_err:
+            logger.warning("Failed to parse args for %s: %s", func_name, parse_err)
+            context.conversation.append(
+                {
+                    "role": Role.TOOL.value,
+                    "tool_call_id": call_id,
+                    "content": f"Error: Invalid JSON in tool arguments: {parse_err}",
+                }
+            )
+            continue
 
         # Notify tool start
         if context.on_tool_start:
@@ -377,8 +385,16 @@ def run(context: Context) -> str | None:
         }
         context.conversation.append(assistant_msg)
 
-        # Execute tool calls
-        _execute_tool_calls(context, tool_calls)
+        # Execute tool calls — checkpoint conversation length so we can
+        # roll back to a consistent state if interrupted mid-execution.
+        checkpoint = len(context.conversation)
+        try:
+            _execute_tool_calls(context, tool_calls)
+        except AgentInterruptedError:
+            # Remove the partially-appended tool results AND the assistant
+            # message that references them, so the conversation stays valid.
+            del context.conversation[checkpoint - 1 :]
+            raise
 
     # Max turns reached
     logger.warning("Agent reached max_turns (%d)", context.max_turns)

@@ -64,7 +64,7 @@ class TestCliOneShot:
 
         monkeypatch.delenv("ZHI_API_KEY", raising=False)
         with patch("zhi.config.load_config") as mock_cfg:
-            mock_cfg.return_value = MagicMock(has_api_key=False)
+            mock_cfg.return_value = MagicMock(has_api_key=False, log_level="INFO")
             with pytest.raises(SystemExit):
                 main(["-c", "hello"])
             captured = capsys.readouterr()
@@ -81,7 +81,7 @@ class TestCliSkillRun:
 
         monkeypatch.delenv("ZHI_API_KEY", raising=False)
         with patch("zhi.config.load_config") as mock_cfg:
-            mock_cfg.return_value = MagicMock(has_api_key=False)
+            mock_cfg.return_value = MagicMock(has_api_key=False, log_level="INFO")
             with pytest.raises(SystemExit):
                 main(["run", "summarize"])
             captured = capsys.readouterr()
@@ -97,7 +97,9 @@ class TestCliSkillRun:
             patch("zhi.config.load_config") as mock_cfg,
             patch("zhi.skills.discover_skills") as mock_discover,
         ):
-            mock_cfg.return_value = MagicMock(has_api_key=True, api_key="sk-test")
+            mock_cfg.return_value = MagicMock(
+                has_api_key=True, api_key="sk-test", log_level="INFO"
+            )
             mock_discover.return_value = {}
             with pytest.raises(SystemExit):
                 main(["run", "nonexistent"])
@@ -258,7 +260,7 @@ class TestRequireApiKey:
     ) -> None:
         from zhi.cli import _require_api_key
 
-        config = MagicMock(has_api_key=False)
+        config = MagicMock(has_api_key=False, log_level="INFO")
         assert _require_api_key(config) is False
         captured = capsys.readouterr()
         assert "No API key" in captured.out

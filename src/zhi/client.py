@@ -176,10 +176,14 @@ class Client:
         Supports: PDF, images, and office documents (.xlsx, .docx, etc.).
         Rejects files over 20MB.
         """
-        if not file_path.exists():
-            raise ClientError(f"File not found: {file_path}")
-
-        file_size = file_path.stat().st_size
+        try:
+            if not file_path.exists():
+                raise ClientError(f"File not found: {file_path}")
+            file_size = file_path.stat().st_size
+        except OSError as exc:
+            raise ClientError(
+                f"Cannot access file: {file_path}: {exc}", code="FILE_ACCESS_ERROR"
+            ) from exc
         if file_size > _MAX_OCR_FILE_SIZE:
             size_mb = file_size / (1024 * 1024)
             raise ClientError(
