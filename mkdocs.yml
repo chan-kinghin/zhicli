@@ -1,5 +1,5 @@
 site_name: zhi CLI
-site_url: https://chan-kinghin.github.io/zhicli/
+site_url: https://zhicli.pages.dev/
 site_description: Terminal AI assistant powered by Zhipu GLM models
 repo_url: https://github.com/chan-kinghin/zhicli
 repo_name: chan-kinghin/zhicli
@@ -84,8 +84,8 @@ plugins:
 extra:
   alternate:
     - name: 中文
-      link: /zhicli/
+      link: /
       lang: zh
     - name: English
-      link: /zhicli/en/
+      link: /en/
       lang: en
