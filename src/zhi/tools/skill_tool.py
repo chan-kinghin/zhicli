@@ -95,6 +95,11 @@ class SkillTool:
         for arg in self._skill.input_args:
             arg_name = arg.get("name", "")
             if not arg_name:
+                logger.warning(
+                    "Skill '%s' has an input arg with no name — "
+                    "it will be omitted from the schema",
+                    self._skill.name,
+                )
                 continue
             properties[arg_name] = {
                 "type": arg.get("type", "string"),

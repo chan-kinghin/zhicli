@@ -165,6 +165,9 @@ class FileWriteTool(BaseTool):
         headers = content.get("headers", [])
         rows = content.get("rows", [])
 
+        if not isinstance(rows, list):
+            return "Error: 'rows' must be a list of lists."
+
         buf = io.StringIO()
         writer = csv.writer(buf, lineterminator="\n")
         if headers:
@@ -193,6 +196,13 @@ class FileWriteTool(BaseTool):
         sheets = content.get("sheets", [])
 
         for i, sheet_data in enumerate(sheets):
+            if not isinstance(sheet_data, dict):
+                return (
+                    f"Error: Sheet {i + 1} is not a valid object. "
+                    'Each sheet must be {{"name": ..., "headers": [...], '
+                    '"rows": [[...]]}}.'
+                )
+
             if i == 0:
                 ws = wb.active
                 ws.title = sheet_data.get("name", "Sheet1")

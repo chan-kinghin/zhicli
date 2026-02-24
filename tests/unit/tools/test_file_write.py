@@ -231,6 +231,49 @@ class TestFileWriteSkillScoped:
         assert (skill_dir / "sub" / "report.md").exists()
 
 
+class TestFileWriteInputValidation:
+    def test_csv_rows_not_a_list(self, tmp_path: Path) -> None:
+        """CSV content with non-list 'rows' returns a clear error."""
+        out = tmp_path / "output"
+        tool = FileWriteTool(output_dir=out)
+        data = {"headers": ["Name", "Age"], "rows": "not a list"}
+        result = tool.execute(path="bad.csv", content=data)
+        assert "Error" in result
+        assert "rows" in result.lower()
+
+    def test_csv_rows_as_dict(self, tmp_path: Path) -> None:
+        """CSV content with dict 'rows' returns a clear error."""
+        out = tmp_path / "output"
+        tool = FileWriteTool(output_dir=out)
+        data = {"headers": ["A"], "rows": {"a": 1}}
+        result = tool.execute(path="bad.csv", content=data)
+        assert "Error" in result
+        assert "rows" in result.lower()
+
+    def test_xlsx_non_dict_sheet_data(self, tmp_path: Path) -> None:
+        """XLSX with non-dict sheet entries returns a clear error."""
+        out = tmp_path / "output"
+        tool = FileWriteTool(output_dir=out)
+        data = {"sheets": ["not a dict", "also not a dict"]}
+        result = tool.execute(path="bad.xlsx", content=data)
+        assert "Error" in result
+        assert "Sheet 1" in result
+
+    def test_xlsx_mixed_valid_and_invalid_sheets(self, tmp_path: Path) -> None:
+        """XLSX with first valid sheet and second invalid returns error for sheet 2."""
+        out = tmp_path / "output"
+        tool = FileWriteTool(output_dir=out)
+        data = {
+            "sheets": [
+                {"name": "Good", "headers": ["A"], "rows": [["val"]]},
+                "bad sheet",
+            ]
+        }
+        result = tool.execute(path="mixed.xlsx", content=data)
+        assert "Error" in result
+        assert "Sheet 2" in result
+
+
 class TestFileWriteCrossPlatform:
     def test_path_validation_cross_platform(self, tmp_path: Path) -> None:
         """Ensure path check works on all platforms (no hard-coded '/')."""

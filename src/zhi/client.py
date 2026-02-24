@@ -208,6 +208,12 @@ class Client:
             result = self._call_with_retry(_call)
             if hasattr(result, "content"):
                 return str(result.content)
+            logger.warning(
+                "file_extract: result has no 'content' attribute, "
+                "falling back to str() — file=%s, type=%s",
+                file_path,
+                type(result).__name__,
+            )
             return str(result)
         except ClientError:
             raise
@@ -245,7 +251,9 @@ class Client:
     def _classify_error(self, error: Exception) -> ClientError:
         """Classify SDK/HTTP errors into typed errors."""
         error_str = str(error).lower()
-        error_code = getattr(error, "status_code", None) or getattr(error, "code", None)
+        status_code = getattr(error, "status_code", None)
+        code_attr = getattr(error, "code", None)
+        error_code = status_code if status_code is not None else code_attr
 
         if (
             error_code in (401, 403)

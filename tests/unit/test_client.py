@@ -456,6 +456,54 @@ class TestOCR:
         assert result == "PDF text"
 
 
+class TestFileExtractFallback:
+    """Test file_extract str() fallback logging."""
+
+    @patch("zhi.client.ZhipuAI")
+    def test_file_extract_no_content_attr_logs_warning(
+        self, mock_sdk_cls: MagicMock, tmp_path: Path
+    ) -> None:
+        """When result has no 'content' attr, a warning is logged."""
+        mock_sdk = mock_sdk_cls.return_value
+        mock_file_result = SimpleNamespace(id="file-999")
+        # Return a plain string (no 'content' attribute)
+        mock_sdk.files.create.return_value = mock_file_result
+        mock_sdk.files.content.return_value = "raw string result"
+
+        test_file = tmp_path / "test.pdf"
+        test_file.write_bytes(b"%PDF-1.4 fake content")
+
+        client = Client(api_key="sk-test")
+        with patch("zhi.client.logger") as mock_logger:
+            result = client.file_extract(test_file)
+
+        assert result == "raw string result"
+        mock_logger.warning.assert_called_once()
+        warning_msg = mock_logger.warning.call_args.args[0]
+        assert "no 'content' attribute" in warning_msg.lower() or "content" in warning_msg
+
+    @patch("zhi.client.ZhipuAI")
+    def test_file_extract_with_content_attr_no_warning(
+        self, mock_sdk_cls: MagicMock, tmp_path: Path
+    ) -> None:
+        """When result has 'content' attr, no warning is logged."""
+        mock_sdk = mock_sdk_cls.return_value
+        mock_file_result = SimpleNamespace(id="file-888")
+        mock_content = SimpleNamespace(content="Extracted text")
+        mock_sdk.files.create.return_value = mock_file_result
+        mock_sdk.files.content.return_value = mock_content
+
+        test_file = tmp_path / "test.pdf"
+        test_file.write_bytes(b"%PDF-1.4 fake content")
+
+        client = Client(api_key="sk-test")
+        with patch("zhi.client.logger") as mock_logger:
+            result = client.file_extract(test_file)
+
+        assert result == "Extracted text"
+        mock_logger.warning.assert_not_called()
+
+
 class TestErrorClassification:
     """Test error classification logic."""
 
@@ -482,3 +530,21 @@ class TestErrorClassification:
                 messages=[{"role": "user", "content": "hi"}],
             )
         assert exc_info.value.code == "CLIENT_ERROR"
+
+    @patch("zhi.client.ZhipuAI")
+    def test_status_code_zero_not_masked(self, mock_sdk_cls: MagicMock) -> None:
+        """status_code=0 should be used as error_code, not skipped as falsy."""
+        client = Client(api_key="sk-test", max_retries=0)
+        error = Exception("some error")
+        error.status_code = 0  # type: ignore[attr-defined]
+        error.code = 429  # type: ignore[attr-defined]
+        # With the old `or` logic, status_code=0 would be falsy and
+        # error.code=429 would be used instead, causing a false RateLimitError.
+        # With `is not None`, status_code=0 is preserved.
+        classified = client._classify_error(error)
+        # status_code=0 doesn't match any known codes, so it falls through
+        # to the generic ClientError — NOT RateLimitError
+        from zhi.client import RateLimitError
+
+        assert not isinstance(classified, RateLimitError)
+        assert classified.code == "CLIENT_ERROR"
