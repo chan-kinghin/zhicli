@@ -99,6 +99,7 @@ def register_skill_tools(
     on_permission: Any | None = None,
     permission_mode_getter: Any | None = None,
     on_ask_user: Any | None = None,
+    base_output_dir: Any | None = None,
 ) -> None:
     """Wrap each discovered SkillConfig as a SkillTool and register it.
 
@@ -112,8 +113,14 @@ def register_skill_tools(
         on_permission: Permission callback for risky tool checks in nested skills.
         permission_mode_getter: Callable returning current PermissionMode.
         on_ask_user: Callback for AskUserTool in nested skills.
+        base_output_dir: Base output directory for skill-scoped file writes.
+            Each skill will write to ``base_output_dir/<skill_name>/``.
     """
+    from pathlib import Path
+
     from zhi.tools.skill_tool import SkillTool
+
+    output_path = Path(base_output_dir) if base_output_dir is not None else None
 
     for _name, skill_config in skills.items():
         tool = SkillTool(
@@ -123,6 +130,7 @@ def register_skill_tools(
             on_permission=on_permission,
             permission_mode_getter=permission_mode_getter,
             on_ask_user=on_ask_user,
+            base_output_dir=output_path,
         )
         try:
             registry.register(tool)

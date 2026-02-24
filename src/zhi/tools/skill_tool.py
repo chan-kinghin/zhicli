@@ -43,6 +43,7 @@ class SkillTool:
         permission_mode_getter: Callable[[], PermissionMode] | None = None,
         on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None,
         on_ask_user: Callable[[str, list[str] | None], str] | None = None,
+        base_output_dir: Path | None = None,
     ) -> None:
         self._skill = skill
         self._client = client
@@ -53,6 +54,7 @@ class SkillTool:
         self._permission_mode_getter = permission_mode_getter
         self._on_permission = on_permission
         self._on_ask_user = on_ask_user
+        self._base_output_dir = base_output_dir
 
     def _get_permission_mode(self) -> PermissionMode:
         """Read permission_mode from getter (live) or fall back to stored value."""
@@ -180,6 +182,16 @@ class SkillTool:
                 inner_schemas.append(ask_tool.to_function_schema())
                 continue
 
+            # Intercept file_write — create skill-scoped FileWriteTool
+            if tool_name == "file_write" and self._base_output_dir is not None:
+                from zhi.tools.file_write import FileWriteTool
+
+                scoped_dir = self._base_output_dir / skill_name
+                scoped_fw = FileWriteTool(output_dir=scoped_dir)
+                inner_tools["file_write"] = scoped_fw
+                inner_schemas.append(scoped_fw.to_function_schema())
+                continue
+
             # Check if it's a skill tool reference (with or without prefix)
             resolved_name = tool_name
             if not tool_name.startswith(_SKILL_TOOL_PREFIX):
@@ -205,6 +217,7 @@ class SkillTool:
                     permission_mode_getter=self._permission_mode_getter,
                     on_permission=self._on_permission,
                     on_ask_user=self._on_ask_user,
+                    base_output_dir=self._base_output_dir,
                 )
                 inner_tools[child.name] = child
                 inner_schemas.append(child.to_function_schema())

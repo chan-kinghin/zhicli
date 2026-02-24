@@ -427,9 +427,22 @@ class ReplSession:
         # Build a skill-scoped context from the current context's client
         from zhi.tools import ToolRegistry, register_skill_tools
 
+        # Compute skill-scoped output directory
+        from zhi.tools.file_write import FileWriteTool
+
+        config = self._context.config
+        base_output_dir = (
+            Path(config.output_dir) if config else Path.cwd() / "zhi-output"
+        )
+        skill_output_dir = base_output_dir / skill_name
+
         skill_registry = ToolRegistry()
         # Register base tools the skill needs (warn on missing — Bug 8)
         for tool_name in skill.tools:
+            # Intercept file_write — use skill-scoped output directory
+            if tool_name == "file_write":
+                skill_registry.register(FileWriteTool(output_dir=skill_output_dir))
+                continue
             existing = self._context.tools.get(tool_name)
             if existing is not None:
                 skill_registry.register(existing)
@@ -439,7 +452,12 @@ class ReplSession:
                 )
 
         # Also register skill-tools for composition
-        register_skill_tools(skill_registry, skills, self._context.client)
+        register_skill_tools(
+            skill_registry,
+            skills,
+            self._context.client,
+            base_output_dir=base_output_dir,
+        )
 
         skill_tools = skill_registry.filter_by_names(skill.tools)
         # Also include skill_ prefixed versions

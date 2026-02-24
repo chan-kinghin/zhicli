@@ -113,6 +113,7 @@ def _build_context(
     system_prompt: str | None = None,
     user_message: str | None = None,
     max_turns: int | None = None,
+    output_dir: str | None = None,
 ) -> Any:
     """Build an agent Context from config and options."""
     from zhi.agent import Context, PermissionMode
@@ -136,9 +137,10 @@ def _build_context(
                 return options[idx]
         return answer.strip()
 
+    effective_output_dir = output_dir or config.output_dir
     client = Client(api_key=config.api_key)
     registry = create_default_registry(
-        output_dir=config.output_dir,
+        output_dir=effective_output_dir,
         ask_user_callback=_ask_user_cli,
     )
 
@@ -175,6 +177,7 @@ def _build_context(
         on_permission=on_permission,
         permission_mode_getter=permission_mode_getter,
         on_ask_user=_ask_user_cli,
+        base_output_dir=config.output_dir,
     )
 
     # Register skill_create so the LLM can create new user skills
@@ -298,6 +301,7 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
                 file_sections.append(f"--- File: {att.filename} ---\n{att.content}")
         user_content += "\n\n" + "\n\n".join(file_sections)
 
+    skill_output_dir = str(Path(config.output_dir) / skill_name)
     context = _build_context(
         config,
         ui,
@@ -306,6 +310,7 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
         system_prompt=prepend_preamble(skill.system_prompt),
         user_message=user_content,
         max_turns=skill.max_turns,
+        output_dir=skill_output_dir,
     )
     t0 = time.monotonic()
     try:

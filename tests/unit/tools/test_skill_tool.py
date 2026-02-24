@@ -376,6 +376,121 @@ class TestSkillToolRecursion:
         assert result == "Mock result"
 
 
+# ── Skill-Scoped Output Directories ──────────────────────────────────
+
+
+class TestSkillToolScopedOutput:
+    def test_file_write_scoped_when_base_output_dir_set(self, tmp_path: Path) -> None:
+        """file_write gets skill-scoped output_dir when base_output_dir is set."""
+        from zhi.tools.file_write import FileWriteTool
+
+        client = _make_client()
+        skill = _make_skill(name="reporter", tools=["file_read", "file_write"])
+
+        # Create a registry with file_read and a global file_write
+        class FakeFileRead(BaseTool):
+            name: ClassVar[str] = "file_read"
+            description: ClassVar[str] = "Read a file."
+            parameters: ClassVar[dict[str, Any]] = {
+                "type": "object",
+                "properties": {},
+            }
+
+            def execute(self, **kwargs: Any) -> str:
+                return "contents"
+
+        registry = ToolRegistry()
+        registry.register(FakeFileRead())
+        global_fw = FileWriteTool(output_dir=tmp_path / "global-output")
+        registry.register(global_fw)
+
+        base_dir = tmp_path / "zhi-output"
+        tool = SkillTool(
+            skill=skill,
+            client=client,
+            registry=registry,
+            base_output_dir=base_dir,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="generate report")
+
+        ctx = mock_run.call_args.args[0]
+        fw_tool = ctx.tools.get("file_write")
+        assert fw_tool is not None
+        assert isinstance(fw_tool, FileWriteTool)
+        # The scoped tool should write to base_dir / skill_name
+        assert fw_tool._output_dir == base_dir / "reporter"
+
+    def test_file_write_from_registry_without_base_output_dir(self) -> None:
+        """Without base_output_dir, file_write is taken from registry as-is."""
+        from zhi.tools.file_write import FileWriteTool
+
+        client = _make_client()
+        skill = _make_skill(name="reporter", tools=["file_read", "file_write"])
+
+        class FakeFileRead(BaseTool):
+            name: ClassVar[str] = "file_read"
+            description: ClassVar[str] = "Read a file."
+            parameters: ClassVar[dict[str, Any]] = {
+                "type": "object",
+                "properties": {},
+            }
+
+            def execute(self, **kwargs: Any) -> str:
+                return "contents"
+
+        registry = ToolRegistry()
+        registry.register(FakeFileRead())
+        global_fw = FileWriteTool()
+        registry.register(global_fw)
+
+        # No base_output_dir — should use registry's file_write as-is
+        tool = SkillTool(
+            skill=skill,
+            client=client,
+            registry=registry,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        fw_tool = ctx.tools.get("file_write")
+        assert fw_tool is global_fw
+
+    def test_base_output_dir_propagated_to_child_skill(self, tmp_path: Path) -> None:
+        """base_output_dir is propagated to child SkillTools."""
+        client = _make_client()
+        base_dir = tmp_path / "zhi-output"
+
+        # Parent skill that references a child skill
+        parent_skill = _make_skill(name="parent", tools=["child"])
+        child_skill = _make_skill(name="child", tools=["file_read"])
+
+        registry = _make_registry_with_fake()
+        child_tool = SkillTool(
+            skill=child_skill, client=client, registry=registry
+        )
+        registry.register(child_tool)
+
+        parent_tool = SkillTool(
+            skill=parent_skill,
+            client=client,
+            registry=registry,
+            base_output_dir=base_dir,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            parent_tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        rewrapped_child = ctx.tools.get("skill_child")
+        assert rewrapped_child is not None
+        assert isinstance(rewrapped_child, SkillTool)
+        assert rewrapped_child._base_output_dir == base_dir
+
+
 # ── Registry Integration ─────────────────────────────────────────────
 
 
@@ -442,6 +557,21 @@ class TestRegisterSkillTools:
         tool = registry.get("skill_summarize")
         assert isinstance(tool, SkillTool)
         assert tool._permission_mode_getter is getter
+
+    def test_passes_base_output_dir(self, tmp_path: Path) -> None:
+        """register_skill_tools forwards base_output_dir to SkillTool."""
+        registry = _make_registry_with_fake()
+        skills = {"summarize": _make_skill(name="summarize")}
+        client = _make_client()
+        base_dir = tmp_path / "zhi-output"
+
+        register_skill_tools(
+            registry, skills, client, base_output_dir=base_dir
+        )
+
+        tool = registry.get("skill_summarize")
+        assert isinstance(tool, SkillTool)
+        assert tool._base_output_dir == base_dir
 
     def test_duplicate_skill_name_skipped(self) -> None:
         """If a skill tool name collides, it's skipped with a warning."""

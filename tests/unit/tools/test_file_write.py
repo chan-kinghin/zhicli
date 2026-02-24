@@ -212,6 +212,25 @@ class TestFileWriteErrorCases:
         assert "Error" in result
 
 
+class TestFileWriteSkillScoped:
+    def test_writes_to_skill_scoped_subdir(self, tmp_path: Path) -> None:
+        """FileWriteTool with skill-scoped output_dir creates files in subdirectory."""
+        skill_dir = tmp_path / "zhi-output" / "compare-quotation"
+        tool = FileWriteTool(output_dir=skill_dir)
+        result = tool.execute(path="report.md", content="# Report\n\nDone.")
+        assert "File written" in result
+        assert (skill_dir / "report.md").exists()
+        assert "# Report" in (skill_dir / "report.md").read_text(encoding="utf-8")
+
+    def test_skill_scoped_creates_nested_dirs(self, tmp_path: Path) -> None:
+        """Skill-scoped output_dir auto-creates nested parent directories."""
+        skill_dir = tmp_path / "zhi-output" / "deep-skill"
+        tool = FileWriteTool(output_dir=skill_dir)
+        result = tool.execute(path="sub/report.md", content="nested content")
+        assert "File written" in result
+        assert (skill_dir / "sub" / "report.md").exists()
+
+
 class TestFileWriteCrossPlatform:
     def test_path_validation_cross_platform(self, tmp_path: Path) -> None:
         """Ensure path check works on all platforms (no hard-coded '/')."""
