@@ -41,22 +41,24 @@ _SENSITIVE_PATTERNS = re.compile(r"(api_key|password|token|secret)", re.IGNORECA
 
 # Canonical set of slash commands — used by both dispatch and completer.
 # Add new commands here AND in _handle_command's handlers dict.
-_SLASH_COMMANDS = frozenset({
-    "/help",
-    "/auto",
-    "/approve",
-    "/model",
-    "/think",
-    "/fast",
-    "/exit",
-    "/run",
-    "/skill",
-    "/status",
-    "/reset",
-    "/undo",
-    "/usage",
-    "/verbose",
-})
+_SLASH_COMMANDS = frozenset(
+    {
+        "/help",
+        "/auto",
+        "/approve",
+        "/model",
+        "/think",
+        "/fast",
+        "/exit",
+        "/run",
+        "/skill",
+        "/status",
+        "/reset",
+        "/undo",
+        "/usage",
+        "/verbose",
+    }
+)
 
 _MAX_HISTORY_ENTRIES = 10_000
 _SKILLS_CACHE_TTL = 5.0  # seconds
@@ -108,17 +110,17 @@ class _ZhiCompleter(Completer):
     def get_completions(self, document: Any, complete_event: Any) -> Any:
         text = document.text_before_cursor
         if text.startswith("/run "):
-            prefix = text[len("/run "):]
+            prefix = text[len("/run ") :]
             for name in sorted(self._skills_fn()):
                 if name.startswith(prefix):
                     yield Completion(name, start_position=-len(prefix))
         elif text.startswith("/model "):
-            prefix = text[len("/model "):]
+            prefix = text[len("/model ") :]
             for name in self._models:
                 if name.startswith(prefix):
                     yield Completion(name, start_position=-len(prefix))
         elif text.startswith("/skill "):
-            prefix = text[len("/skill "):]
+            prefix = text[len("/skill ") :]
             for sub in ["list", "show", "edit", "delete"]:
                 if sub.startswith(prefix):
                     yield Completion(sub, start_position=-len(prefix))
@@ -386,10 +388,22 @@ class ReplSession:
 
         skill = skills[skill_name]
 
+        # Read file content upfront and inject into user message (like Claude Code).
         user_content = f"Run the '{skill_name}' skill."
         if files:
-            file_list = ", ".join(files)
-            user_content += f" Input files: {file_list}"
+            from zhi.files import _extract_one
+
+            file_sections: list[str] = []
+            for file_path in files:
+                path = Path(file_path).expanduser().resolve()
+                att = _extract_one(path, self._context.client)
+                if att.error:
+                    file_sections.append(
+                        f"--- File: {att.filename} ---\n[Error: {att.error}]"
+                    )
+                else:
+                    file_sections.append(f"--- File: {att.filename} ---\n{att.content}")
+            user_content += "\n\n" + "\n\n".join(file_sections)
 
         # Build a skill-scoped context from the current context's client
         from zhi.tools import ToolRegistry, register_skill_tools
@@ -433,10 +447,12 @@ class ReplSession:
             permission_mode=self._context.permission_mode,
             conversation=conversation,
             max_turns=skill.max_turns,
+            on_stream_start=self._ui.stream_start,
             on_stream=self._ui.stream,
             on_thinking=self._ui.show_thinking,
             on_tool_start=self._ui.show_tool_start,
             on_tool_end=self._ui.show_tool_end,
+            on_tool_total=self._ui.set_tool_total,
             on_permission=lambda tool, call: self._ui.ask_permission(
                 tool.name,
                 safe_parse_args(call["function"]["arguments"]),
@@ -672,12 +688,17 @@ class ReplSession:
         }
         self._context.conversation.append(user_msg)
 
+        # Reset file counters for this interaction
+        self._context.files_read = 0
+        self._context.files_written = 0
+
         # Set up ESC watcher for cancellation
         self._context.cancel_event.clear()
         stop_event: threading.Event | None = None
         if sys.stdin.isatty():
             stop_event = self._start_esc_watcher(self._context.cancel_event)
 
+        t0 = time.monotonic()
         try:
             result = agent_run(self._context)
         except (KeyboardInterrupt, AgentInterruptedError):
@@ -705,10 +726,19 @@ class ReplSession:
             if stop_event is not None:
                 stop_event.set()
             self._context.cancel_event.clear()
+        elapsed = time.monotonic() - t0
 
         if result is None:
             self._ui.show_warning(t("repl.max_turns"))
         else:
             self._ui.stream_end()
+
+        # Show summary if files were touched
+        if self._context.files_read or self._context.files_written:
+            self._ui.show_summary(
+                files_read=self._context.files_read,
+                files_written=self._context.files_written,
+                elapsed=elapsed,
+            )
 
         return result

@@ -7,6 +7,7 @@ permission prompts, structured error rendering, and no-color fallback.
 from __future__ import annotations
 
 import os
+import time
 from typing import Any
 
 from zhi.errors import ZhiError, format_error
@@ -27,6 +28,9 @@ class UI:
         self._tool_step = 0
         self._tool_total = 0
         self._stream_buffer: str = ""
+        self._waiting_live: Any = None
+        self._waiting_start: float = 0.0
+        self._stream_live: Any = None
 
         if not self._no_color:
             from rich.console import Console
@@ -43,18 +47,49 @@ class UI:
     def verbose(self, value: bool) -> None:
         self._verbose = value
 
+    def stream_start(self) -> None:
+        """Begin a live-updating stream display (Rich mode only)."""
+        if self._no_color:
+            return
+
+        from rich.live import Live
+        from rich.text import Text
+
+        self._stream_buffer = ""
+        self._stream_live = Live(
+            Text(""),
+            console=self._console,
+            refresh_per_second=8,
+            vertical_overflow="visible",
+        )
+        self._stream_live.start()
+
     def stream(self, text: str) -> None:
-        """Buffer streamed text for markdown rendering at stream_end()."""
+        """Buffer streamed text, updating live display if active."""
         if self._no_color:
             print(text, end="", flush=True)
             return
         self._stream_buffer += text
+        if self._stream_live is not None:
+            try:
+                from rich.markdown import Markdown
+
+                self._stream_live.update(Markdown(self._stream_buffer))
+            except Exception:
+                from rich.text import Text
+
+                self._stream_live.update(Text(self._stream_buffer))
 
     def stream_end(self) -> None:
         """Render buffered stream content as markdown, then clear buffer."""
         if self._no_color:
             print()
             return
+
+        # Stop live display if active
+        if self._stream_live is not None:
+            self._stream_live.stop()
+            self._stream_live = None
 
         buf = self._stream_buffer
         self._stream_buffer = ""
@@ -296,21 +331,33 @@ class UI:
         c.print()
 
     def show_waiting(self, model: str) -> None:
-        """Display a brief waiting indicator before API call."""
+        """Display a spinner with elapsed time while waiting for API response."""
         if self._no_color:
             print(f"[...] {model}", end="", flush=True)
-        else:
-            from rich.text import Text
+            return
 
-            text = Text(f"  {model} ", style="dim cyan")
-            self._console.print(text, end="")
+        from rich.live import Live
+        from rich.spinner import Spinner
+
+        self._waiting_start = time.monotonic()
+        spinner = Spinner("dots", text=f"  {model} ...", style="cyan")
+        self._waiting_live = Live(
+            _ElapsedSpinner(model, self._waiting_start, spinner),
+            console=self._console,
+            refresh_per_second=4,
+            transient=True,
+        )
+        self._waiting_live.start()
 
     def clear_waiting(self) -> None:
-        """Clear the waiting indicator."""
+        """Stop the waiting spinner."""
         if self._no_color:
             print("\r" + " " * 40 + "\r", end="", flush=True)
-        else:
-            self._console.print("\r" + " " * 40 + "\r", end="")
+            return
+
+        if self._waiting_live is not None:
+            self._waiting_live.stop()
+            self._waiting_live = None
 
     def print(self, message: str) -> None:
         """Print a plain message."""
@@ -318,6 +365,20 @@ class UI:
             print(message)
         else:
             self._console.print(message)
+
+
+class _ElapsedSpinner:
+    """Rich renderable that shows a spinner with elapsed time."""
+
+    def __init__(self, model: str, start: float, spinner: Any) -> None:
+        self._model = model
+        self._start = start
+        self._spinner = spinner
+
+    def __rich_console__(self, console: Any, options: Any) -> Any:
+        elapsed = time.monotonic() - self._start
+        self._spinner.text = f"  {self._model} ... {elapsed:.1f}s"
+        yield from self._spinner.__rich_console__(console, options)
 
 
 class _NoOpContext:

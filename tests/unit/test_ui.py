@@ -246,6 +246,103 @@ class TestUINoColorEnv:
         assert _no_color() is False
 
 
+class TestUIStreamLive:
+    """Test live stream start/end lifecycle."""
+
+    def test_stream_start_creates_live(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        from zhi.ui import UI
+
+        ui = UI(no_color=False)
+        ui.stream_start()
+        assert ui._stream_live is not None
+        ui.stream_end()  # Cleanup
+
+    def test_stream_end_clears_live(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        from zhi.ui import UI
+
+        ui = UI(no_color=False)
+        ui.stream_start()
+        ui.stream("Hello")
+        ui.stream_end()
+        assert ui._stream_live is None
+
+    def test_stream_without_live_buffers(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        from zhi.ui import UI
+
+        ui = UI(no_color=False)
+        ui.stream("chunk1")
+        ui.stream("chunk2")
+        assert ui._stream_buffer == "chunk1chunk2"
+        ui.stream_end()
+
+    def test_stream_start_nocolor_noop(self) -> None:
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        ui.stream_start()  # Should not raise
+        assert ui._stream_live is None
+
+
+class TestUISpinnerElapsed:
+    """Test elapsed time spinner."""
+
+    def test_show_waiting_creates_live_rich(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        from zhi.ui import UI
+
+        ui = UI(no_color=False)
+        ui.show_waiting("glm-5")
+        assert ui._waiting_live is not None
+        ui.clear_waiting()
+
+    def test_clear_waiting_stops_live(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.delenv("NO_COLOR", raising=False)
+        from zhi.ui import UI
+
+        ui = UI(no_color=False)
+        ui.show_waiting("glm-5")
+        ui.clear_waiting()
+        assert ui._waiting_live is None
+
+    def test_show_waiting_nocolor_fallback(self) -> None:
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_waiting("glm-5")
+        assert "glm-5" in mock_out.getvalue()
+        assert ui._waiting_live is None
+
+
+class TestElapsedSpinner:
+    """Test _ElapsedSpinner renderable."""
+
+    def test_elapsed_spinner_format(self) -> None:
+        import time as time_mod
+
+        from rich.spinner import Spinner
+
+        from zhi.ui import _ElapsedSpinner
+
+        start = time_mod.monotonic() - 2.5  # Simulate 2.5s elapsed
+        spinner = Spinner("dots", text="placeholder")
+        es = _ElapsedSpinner("glm-5", start, spinner)
+
+        # Verify the text gets updated when rendered
+        from rich.console import Console
+
+        console = Console(force_terminal=True, width=80)
+        # Trigger __rich_console__ by iterating
+        list(es.__rich_console__(console, console.options))
+        assert "glm-5" in spinner.text
+        assert "s" in spinner.text  # elapsed time suffix
+
+
 class TestNoOpContext:
     """Test the no-op context manager for spinner fallback."""
 

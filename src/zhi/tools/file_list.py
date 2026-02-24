@@ -8,6 +8,21 @@ from typing import Any, ClassVar
 
 from zhi.tools.base import BaseTool
 
+# Directories to skip during recursive listing — avoids hangs on network mounts,
+# cloud-synced trash folders, and notoriously deep/slow trees.
+_SKIP_DIRS = frozenset(
+    {
+        ".Trash",
+        ".git",
+        "node_modules",
+        "__pycache__",
+        ".tox",
+        ".venv",
+        ".mypy_cache",
+        ".ruff_cache",
+    }
+)
+
 
 def _human_readable_size(size_bytes: int) -> str:
     """Convert bytes to human-readable size string."""
@@ -105,24 +120,30 @@ class FileListTool(BaseTool):
                 dir_path.iterdir(),
                 key=lambda p: (not p.is_dir(), p.name.lower()),
             )
-        except PermissionError:
-            lines.append(f"{prefix}[permission denied]")
+        except OSError:
+            # Catches PermissionError, TimeoutError (network mounts), etc.
+            lines.append(f"{prefix}[access error]")
             return
 
         for entry in entries:
+            # Skip known problematic directories by name (no I/O needed)
+            if entry.name in _SKIP_DIRS:
+                continue
+
             try:
+                is_dir = entry.is_dir()
                 stat = entry.stat()
-                size = _human_readable_size(stat.st_size) if entry.is_file() else "-"
+                size = _human_readable_size(stat.st_size) if not is_dir else "-"
                 mtime = datetime.datetime.fromtimestamp(
                     stat.st_mtime, tz=datetime.timezone.utc
                 ).strftime("%Y-%m-%d %H:%M")
-                kind = "d" if entry.is_dir() else "f"
+                kind = "d" if is_dir else "f"
                 lines.append(f"{prefix}[{kind}] {entry.name:<30} {size:>10}  {mtime}")
             except OSError:
                 lines.append(f"{prefix}[?] {entry.name}")
                 continue
 
-            if entry.is_dir():
+            if is_dir:
                 self._list_dir(
                     entry,
                     prefix + "  ",

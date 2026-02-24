@@ -9,6 +9,7 @@ import argparse
 import logging
 import os
 import sys
+import time
 from typing import Any
 
 from zhi.agent import safe_parse_args
@@ -145,10 +146,12 @@ def _build_context(
         permission_mode=PermissionMode.APPROVE,
         conversation=conversation,
         max_turns=max_turns or config.max_turns,
+        on_stream_start=ui.stream_start,
         on_stream=ui.stream,
         on_thinking=ui.show_thinking,
         on_tool_start=ui.show_tool_start,
         on_tool_end=ui.show_tool_end,
+        on_tool_total=ui.set_tool_total,
         on_permission=lambda tool, call: ui.ask_permission(
             tool.name,
             safe_parse_args(call["function"]["arguments"]),
@@ -172,6 +175,7 @@ def _run_oneshot(config: Any, ui: Any, message: str) -> None:
     from zhi.errors import ApiError
 
     context = _build_context(config, ui, user_message=message)
+    t0 = time.monotonic()
     try:
         result = agent_run(context)
     except KeyboardInterrupt:
@@ -181,12 +185,21 @@ def _run_oneshot(config: Any, ui: Any, message: str) -> None:
         logger.exception("Agent error in one-shot mode")
         ui.show_error(ApiError(str(e), suggestions=[t("repl.error_try_again")]))
         sys.exit(1)
+    elapsed = time.monotonic() - t0
     if result:
         ui.stream_end()
+    if context.files_read or context.files_written:
+        ui.show_summary(
+            files_read=context.files_read,
+            files_written=context.files_written,
+            elapsed=elapsed,
+        )
 
 
 def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
     """Run a skill by name with optional input files."""
+    from pathlib import Path
+
     from zhi.agent import run as agent_run
     from zhi.errors import ApiError
     from zhi.skills import discover_skills
@@ -199,10 +212,24 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
 
     skill = skills[skill_name]
 
+    # Read file content upfront and inject into user message (like Claude Code).
     user_content = f"Run the '{skill_name}' skill."
     if files:
-        file_list = ", ".join(files)
-        user_content += f" Input files: {file_list}"
+        from zhi.client import Client
+        from zhi.files import _extract_one
+
+        client = Client(api_key=config.api_key)
+        file_sections = []
+        for file_path in files:
+            path = Path(file_path).expanduser().resolve()
+            att = _extract_one(path, client)
+            if att.error:
+                file_sections.append(
+                    f"--- File: {att.filename} ---\n[Error: {att.error}]"
+                )
+            else:
+                file_sections.append(f"--- File: {att.filename} ---\n{att.content}")
+        user_content += "\n\n" + "\n\n".join(file_sections)
 
     context = _build_context(
         config,
@@ -213,6 +240,7 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
         user_message=user_content,
         max_turns=skill.max_turns,
     )
+    t0 = time.monotonic()
     try:
         result = agent_run(context)
     except KeyboardInterrupt:
@@ -222,8 +250,15 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
         logger.exception("Agent error in skill mode")
         ui.show_error(ApiError(str(e), suggestions=[t("repl.error_try_again")]))
         sys.exit(1)
+    elapsed = time.monotonic() - t0
     if result:
         ui.stream_end()
+    if context.files_read or context.files_written:
+        ui.show_summary(
+            files_read=context.files_read,
+            files_written=context.files_written,
+            elapsed=elapsed,
+        )
 
 
 def _run_pipe(config: Any, ui: Any) -> None:

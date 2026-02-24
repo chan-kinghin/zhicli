@@ -10,6 +10,8 @@ from unittest.mock import MagicMock
 from zhi.agent import (
     Context,
     PermissionMode,
+    _can_stream,
+    _do_turn_streaming,
     run,
 )
 from zhi.config import ZhiConfig
@@ -86,9 +88,15 @@ def _make_context(
     on_thinking: Any = None,
     on_tool_start: Any = None,
     on_tool_end: Any = None,
+    on_tool_total: Any = None,
     on_waiting: Any = None,
+    streaming: bool = False,
 ) -> Context:
-    """Create a Context with a mock client that returns given responses."""
+    """Create a Context with a mock client that returns given responses.
+
+    streaming defaults to False so MagicMock's auto-attribute doesn't
+    cause hasattr(client, 'chat_stream') to return True unexpectedly.
+    """
     client = MagicMock()
     response_iter = iter(responses)
     client.chat.side_effect = lambda **kwargs: next(response_iter)
@@ -116,10 +124,12 @@ def _make_context(
         tool_schemas=tool_schemas,
         permission_mode=permission_mode,
         max_turns=max_turns,
+        streaming=streaming,
         on_stream=on_stream,
         on_thinking=on_thinking,
         on_tool_start=on_tool_start,
         on_tool_end=on_tool_end,
+        on_tool_total=on_tool_total,
         on_waiting=on_waiting,
         on_permission=on_permission,
     )
@@ -580,3 +590,343 @@ class TestAgentArgParsing:
 
         # Should fall back to empty args
         assert tool.last_kwargs == {}
+
+
+class TestAgentToolTotal:
+    """Test step counter callback."""
+
+    def test_on_tool_total_called(self) -> None:
+        """on_tool_total is called with number of tool calls."""
+        on_tool_total = MagicMock()
+        tool_a = MockTool(name="tool_a", result="ok")
+        tool_b = MockTool(name="tool_b", result="ok")
+        responses = [
+            MockResponse(
+                tool_calls=[
+                    _make_tool_call("tool_a", call_id="c1"),
+                    _make_tool_call("tool_b", call_id="c2"),
+                ],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(
+            responses,
+            tools={"tool_a": tool_a, "tool_b": tool_b},
+            on_tool_total=on_tool_total,
+        )
+
+        run(ctx)
+
+        on_tool_total.assert_called_once_with(2)
+
+    def test_on_tool_total_not_called_without_tools(self) -> None:
+        """on_tool_total is not called when there are no tool calls."""
+        on_tool_total = MagicMock()
+        responses = [MockResponse(content="Hello")]
+        ctx = _make_context(responses, on_tool_total=on_tool_total)
+
+        run(ctx)
+
+        on_tool_total.assert_not_called()
+
+
+class TestAgentFileCounting:
+    """Test file counting for summary."""
+
+    def test_file_read_counted(self) -> None:
+        """Successful file_read increments files_read counter."""
+        tool = MockTool(name="file_read", result="file contents")
+        responses = [
+            MockResponse(
+                tool_calls=[_make_tool_call("file_read", {"path": "a.txt"})],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(responses, tools={"file_read": tool})
+
+        run(ctx)
+
+        assert ctx.files_read == 1
+        assert ctx.files_written == 0
+
+    def test_file_write_counted(self) -> None:
+        """Successful file_write increments files_written counter."""
+        tool = MockTool(name="file_write", result="File written successfully")
+        responses = [
+            MockResponse(
+                tool_calls=[_make_tool_call("file_write", {"path": "b.txt"})],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(responses, tools={"file_write": tool})
+
+        run(ctx)
+
+        assert ctx.files_written == 1
+        assert ctx.files_read == 0
+
+    def test_failed_file_read_not_counted(self) -> None:
+        """Failed file_read (result starts with Error) is not counted."""
+        tool = MockTool(name="file_read", result="Error: File not found")
+        responses = [
+            MockResponse(
+                tool_calls=[_make_tool_call("file_read")],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(responses, tools={"file_read": tool})
+
+        run(ctx)
+
+        assert ctx.files_read == 0
+
+    def test_multiple_files_counted(self) -> None:
+        """Multiple file operations accumulate counters."""
+        read_tool = MockTool(name="file_read", result="contents")
+        write_tool = MockTool(name="file_write", result="File written ok")
+        responses = [
+            MockResponse(
+                tool_calls=[
+                    _make_tool_call("file_read", call_id="c1"),
+                    _make_tool_call("file_write", call_id="c2"),
+                    _make_tool_call("file_read", call_id="c3"),
+                ],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(
+            responses,
+            tools={"file_read": read_tool, "file_write": write_tool},
+        )
+
+        run(ctx)
+
+        assert ctx.files_read == 2
+        assert ctx.files_written == 1
+
+
+class TestAgentStreaming:
+    """Test streaming turn behavior."""
+
+    def test_can_stream_false_by_default_mock(self) -> None:
+        """_can_stream returns False when streaming=False."""
+        ctx = _make_context([MockResponse(content="Hi")])
+        assert not _can_stream(ctx)
+
+    def test_can_stream_true_when_enabled(self) -> None:
+        """_can_stream returns True when streaming=True and client has chat_stream."""
+        ctx = _make_context([MockResponse(content="Hi")], streaming=True)
+        assert _can_stream(ctx)
+
+    def test_streaming_fallback_to_buffered(self) -> None:
+        """When streaming=False, agent uses buffered chat()."""
+        responses = [MockResponse(content="Hello!")]
+        ctx = _make_context(responses, streaming=False)
+
+        result = run(ctx)
+
+        assert result == "Hello!"
+        ctx.client.chat.assert_called_once()
+
+    def test_streaming_content_chunks(self) -> None:
+        """Streaming turn accumulates content from delta chunks."""
+
+        @dataclass
+        class MockChunk:
+            delta_content: str = ""
+            delta_thinking: str = ""
+            tool_calls: list[dict[str, Any]] = field(default_factory=list)
+            finish_reason: str | None = None
+            usage: dict[str, int] | None = None
+
+        chunks = [
+            MockChunk(delta_content="Hel"),
+            MockChunk(delta_content="lo!"),
+            MockChunk(finish_reason="stop", usage={"total_tokens": 42}),
+        ]
+
+        client = MagicMock()
+        client.chat_stream.return_value = iter(chunks)
+
+        ctx = Context(
+            config=ZhiConfig(),
+            client=client,
+            model="glm-5",
+            tools={},
+            tool_schemas=[],
+            permission_mode=PermissionMode.APPROVE,
+            streaming=True,
+            conversation=[{"role": "user", "content": "hi"}],
+        )
+
+        result = _do_turn_streaming(ctx)
+
+        assert result.content == "Hello!"
+        assert result.total_tokens == 42
+        assert result.tool_calls == []
+
+    def test_streaming_tool_call_accumulation(self) -> None:
+        """Streaming turn accumulates tool call deltas."""
+
+        @dataclass
+        class MockChunk:
+            delta_content: str = ""
+            delta_thinking: str = ""
+            tool_calls: list[dict[str, Any]] = field(default_factory=list)
+            finish_reason: str | None = None
+            usage: dict[str, int] | None = None
+
+        chunks = [
+            MockChunk(
+                tool_calls=[
+                    {
+                        "index": 0,
+                        "id": "call_1",
+                        "function": {"name": "file_", "arguments": '{"pa'},
+                    }
+                ]
+            ),
+            MockChunk(
+                tool_calls=[
+                    {
+                        "index": 0,
+                        "id": None,
+                        "function": {"name": "read", "arguments": 'th":"a.txt"}'},
+                    }
+                ]
+            ),
+            MockChunk(finish_reason="tool_calls"),
+        ]
+
+        client = MagicMock()
+        client.chat_stream.return_value = iter(chunks)
+
+        ctx = Context(
+            config=ZhiConfig(),
+            client=client,
+            model="glm-5",
+            tools={},
+            tool_schemas=[],
+            permission_mode=PermissionMode.APPROVE,
+            streaming=True,
+            conversation=[{"role": "user", "content": "read a.txt"}],
+        )
+
+        result = _do_turn_streaming(ctx)
+
+        assert len(result.tool_calls) == 1
+        tc = result.tool_calls[0]
+        assert tc["id"] == "call_1"
+        assert tc["function"]["name"] == "file_read"
+        assert tc["function"]["arguments"] == '{"path":"a.txt"}'
+
+    def test_streaming_on_stream_called_per_chunk(self) -> None:
+        """on_stream is called for each content delta."""
+
+        @dataclass
+        class MockChunk:
+            delta_content: str = ""
+            delta_thinking: str = ""
+            tool_calls: list[dict[str, Any]] = field(default_factory=list)
+            finish_reason: str | None = None
+            usage: dict[str, int] | None = None
+
+        chunks = [
+            MockChunk(delta_content="a"),
+            MockChunk(delta_content="b"),
+            MockChunk(delta_content="c"),
+            MockChunk(finish_reason="stop"),
+        ]
+
+        on_stream = MagicMock()
+        client = MagicMock()
+        client.chat_stream.return_value = iter(chunks)
+
+        ctx = Context(
+            config=ZhiConfig(),
+            client=client,
+            model="glm-5",
+            tools={},
+            tool_schemas=[],
+            permission_mode=PermissionMode.APPROVE,
+            streaming=True,
+            on_stream=on_stream,
+            conversation=[{"role": "user", "content": "hi"}],
+        )
+
+        _do_turn_streaming(ctx)
+
+        assert on_stream.call_count == 3
+        on_stream.assert_any_call("a")
+        on_stream.assert_any_call("b")
+        on_stream.assert_any_call("c")
+
+    def test_full_streaming_run_with_tools(self) -> None:
+        """Full agent run using streaming with tool calls and final response."""
+
+        @dataclass
+        class MockChunk:
+            delta_content: str = ""
+            delta_thinking: str = ""
+            tool_calls: list[dict[str, Any]] = field(default_factory=list)
+            finish_reason: str | None = None
+            usage: dict[str, int] | None = None
+
+        # First turn: tool call via streaming
+        tool_chunks = [
+            MockChunk(
+                tool_calls=[
+                    {
+                        "index": 0,
+                        "id": "call_1",
+                        "function": {"name": "file_read", "arguments": "{}"},
+                    }
+                ]
+            ),
+            MockChunk(finish_reason="tool_calls", usage={"total_tokens": 20}),
+        ]
+
+        # Second turn: final text via streaming
+        text_chunks = [
+            MockChunk(delta_content="Done!"),
+            MockChunk(finish_reason="stop", usage={"total_tokens": 10}),
+        ]
+
+        call_count = {"n": 0}
+        chunk_lists = [tool_chunks, text_chunks]
+
+        def mock_chat_stream(**kwargs: Any) -> Any:
+            idx = call_count["n"]
+            call_count["n"] += 1
+            return iter(chunk_lists[idx])
+
+        tool = MockTool(name="file_read", result="file data")
+
+        client = MagicMock(spec=[])  # Empty spec so hasattr works correctly
+        client.chat_stream = mock_chat_stream
+
+        ctx = Context(
+            config=ZhiConfig(),
+            client=client,
+            model="glm-5",
+            tools={"file_read": tool},
+            tool_schemas=[
+                {
+                    "type": "function",
+                    "function": {
+                        "name": "file_read",
+                        "description": "Read a file",
+                        "parameters": {"type": "object", "properties": {}},
+                    },
+                }
+            ],
+            permission_mode=PermissionMode.APPROVE,
+            streaming=True,
+            conversation=[{"role": "user", "content": "read file"}],
+        )
+
+        result = run(ctx)
+
+        assert result == "Done!"
+        assert tool.call_count == 1
+        assert ctx.session_tokens == 30

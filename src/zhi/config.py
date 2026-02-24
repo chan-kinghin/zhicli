@@ -181,6 +181,29 @@ def run_wizard(config_dir: Path | None = None) -> ZhiConfig:
     print(t("setup.step3"))
     run_demo = input(t("setup.demo_prompt")).strip().lower()
     if run_demo in ("", "y", "yes"):
+        if not api_key:
+            print(t("setup.demo_no_key"))
+        else:
+            print(t("setup.demo_running"))
+            try:
+                from zhi.client import Client
+
+                demo_client = Client(api_key=api_key)
+                resp = demo_client.chat(
+                    messages=[{"role": "user", "content": t("setup.demo_prompt_text")}],
+                    model="glm-4-flash",
+                )
+                if resp.content:
+                    # Truncate long responses for display
+                    display = resp.content[:200]
+                    if len(resp.content) > 200:
+                        display += "..."
+                    print(t("setup.demo_success", response=display))
+                else:
+                    print(t("setup.demo_empty"))
+            except Exception as e:
+                print(t("setup.demo_error", error=str(e)))
+    else:
         print(t("setup.demo_skip"))
 
     config = ZhiConfig(

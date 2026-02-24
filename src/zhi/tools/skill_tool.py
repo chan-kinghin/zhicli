@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from zhi.agent import Context, PermissionMode, Role
@@ -96,6 +97,23 @@ class SkillTool:
             },
         }
 
+    # -- File helpers ----------------------------------------------------------
+
+    def _read_file(self, path_str: str) -> Any:
+        """Read a file for injection into the skill context.
+
+        Uses the same extraction logic as chat file attachments — text files
+        are read directly, xlsx/pdf/images go through the Zhipu API.
+        """
+        from zhi.files import _extract_one
+
+        path = Path(path_str).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        path = path.resolve()
+
+        return _extract_one(path, self._client)
+
     # -- Execution -------------------------------------------------------------
 
     def execute(self, **kwargs: Any) -> str:
@@ -164,11 +182,42 @@ class SkillTool:
                     tool_name,
                 )
 
-        # Build user message from kwargs
+        # Build user message from kwargs — inject file content for file-type args
+        # (like Claude Code: read files at the infrastructure level, don't rely
+        # on the LLM to forward paths correctly)
         user_input = kwargs.get("input", "")
-        extra_args = {k: v for k, v in kwargs.items() if k != "input"}
-        if extra_args:
-            user_input += f"\n\nAdditional arguments: {extra_args}"
+
+        file_arg_names = {
+            arg["name"]
+            for arg in self._skill.input_args
+            if arg.get("name") and arg.get("type") == "file"
+        }
+
+        file_sections: list[str] = []
+        non_file_extras: dict[str, Any] = {}
+
+        for k, v in kwargs.items():
+            if k == "input":
+                continue
+            if k in file_arg_names:
+                if v:  # Non-empty file path — read and inject content
+                    att = self._read_file(str(v))
+                    if att.error:
+                        file_sections.append(
+                            f"--- File ({k}): {att.filename} ---\n[Error: {att.error}]"
+                        )
+                    else:
+                        file_sections.append(
+                            f"--- File ({k}): {att.filename} ---\n{att.content}"
+                        )
+                # Skip empty file args entirely — don't inject noise
+            else:
+                non_file_extras[k] = v
+
+        if file_sections:
+            user_input += "\n\n" + "\n\n".join(file_sections)
+        if non_file_extras:
+            user_input += f"\n\nAdditional arguments: {non_file_extras}"
 
         conversation: list[dict[str, Any]] = []
         if self._skill.system_prompt:
@@ -190,6 +239,7 @@ class SkillTool:
             conversation=conversation,
             max_turns=self._skill.max_turns,
             thinking_enabled=False,
+            streaming=False,  # Nested skills use buffered mode
         )
 
         try:

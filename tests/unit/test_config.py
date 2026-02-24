@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import stat
+from dataclasses import dataclass, field
 from pathlib import Path
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import pytest
 import yaml
 
-from zhi.config import ZhiConfig, get_config_dir, load_config, save_config
+from zhi.config import ZhiConfig, get_config_dir, load_config, run_wizard, save_config
 
 
 class TestZhiConfig:
@@ -213,3 +216,79 @@ class TestGetConfigDir:
         result = get_config_dir()
         assert isinstance(result, Path)
         assert "zhi" in str(result)
+
+
+class TestWizardDemo:
+    """Test wizard demo Step 3 behavior."""
+
+    def _run_wizard_with_inputs(
+        self,
+        tmp_path: Path,
+        inputs: list[str],
+        mock_client: Any = None,
+    ) -> ZhiConfig:
+        """Helper to run wizard with mocked inputs and optional mocked client."""
+        input_iter = iter(inputs)
+
+        with patch("builtins.input", side_effect=lambda _prompt="": next(input_iter)):
+            if mock_client is not None:
+                with patch("zhi.client.Client", return_value=mock_client):
+                    return run_wizard(config_dir=tmp_path)
+            else:
+                # Patch Client to avoid real API calls even when not expecting one
+                with patch("zhi.client.Client"):
+                    return run_wizard(config_dir=tmp_path)
+
+    def test_demo_success(self, tmp_path: Path) -> None:
+        """Demo makes API call and shows response when key is provided."""
+
+        @dataclass
+        class FakeResponse:
+            content: str = "Hello from GLM!"
+            tool_calls: list[Any] = field(default_factory=list)
+
+        mock_client = MagicMock()
+        mock_client.chat.return_value = FakeResponse()
+
+        # Inputs: api_key, model, skill_model, output_dir, language, demo (y)
+        cfg = self._run_wizard_with_inputs(
+            tmp_path,
+            ["sk-test-key", "", "", "", "", "y"],
+            mock_client=mock_client,
+        )
+
+        assert cfg.api_key == "sk-test-key"
+        mock_client.chat.assert_called_once()
+
+    def test_demo_no_key_skips(self, tmp_path: Path) -> None:
+        """Demo is skipped when no API key is provided."""
+        # Inputs: empty key, model, skill_model, output_dir, language, demo (y)
+        cfg = self._run_wizard_with_inputs(
+            tmp_path,
+            ["", "", "", "", "", "y"],
+        )
+
+        assert cfg.api_key == ""
+
+    def test_demo_declined(self, tmp_path: Path) -> None:
+        """Demo is skipped when user declines."""
+        cfg = self._run_wizard_with_inputs(
+            tmp_path,
+            ["sk-test", "", "", "", "", "n"],
+        )
+
+        assert cfg.api_key == "sk-test"
+
+    def test_demo_api_error_handled(self, tmp_path: Path) -> None:
+        """Demo handles API errors gracefully."""
+        mock_client = MagicMock()
+        mock_client.chat.side_effect = Exception("Connection refused")
+
+        # Should not raise
+        cfg = self._run_wizard_with_inputs(
+            tmp_path,
+            ["sk-test-key", "", "", "", "", "y"],
+            mock_client=mock_client,
+        )
+
+        assert cfg.api_key == "sk-test-key"

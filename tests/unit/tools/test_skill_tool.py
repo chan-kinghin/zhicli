@@ -196,6 +196,56 @@ class TestSkillToolExecution:
         user_msg = next(m for m in messages if m["role"] == "user")
         assert "language" in user_msg["content"]
 
+    def test_file_arg_content_injected(self, tmp_path: MagicMock) -> None:
+        """File-type args get their content read and injected into the user message."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".txt", mode="w", delete=False, encoding="utf-8"
+        ) as f:
+            f.write("Hello from file")
+            fpath = f.name
+
+        try:
+            client = _make_client()
+            registry = _make_registry_with_fake()
+            skill = _make_skill(
+                input_args=[
+                    {"name": "file", "type": "file", "required": True},
+                ]
+            )
+            tool = SkillTool(skill=skill, client=client, registry=registry)
+
+            tool.execute(input="Analyze this", file=fpath)
+            call_args = client.chat.call_args
+            messages = call_args.kwargs["messages"]
+            user_msg = next(m for m in messages if m["role"] == "user")
+            assert "Hello from file" in user_msg["content"]
+            assert "--- File (file):" in user_msg["content"]
+        finally:
+            import os
+
+            os.unlink(fpath)
+
+    def test_empty_file_arg_not_injected(self) -> None:
+        """Empty file-type args are skipped — no 'Additional arguments: {file: }'."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(
+            input_args=[
+                {"name": "file", "type": "file", "required": True},
+            ]
+        )
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        tool.execute(input="Analyze this", file="")
+        call_args = client.chat.call_args
+        messages = call_args.kwargs["messages"]
+        user_msg = next(m for m in messages if m["role"] == "user")
+        # Should NOT contain empty file args as noise
+        assert "Additional arguments" not in user_msg["content"]
+        assert "'file': ''" not in user_msg["content"]
+
 
 # ── Recursion Prevention ─────────────────────────────────────────────
 
