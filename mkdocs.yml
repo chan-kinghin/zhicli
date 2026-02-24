@@ -33,6 +33,7 @@ theme:
     - content.code.copy
     - content.tabs.link
   icon:
+    logo: custom/pagoda
     repo: fontawesome/brands/github
 
 nav:
