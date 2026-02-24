@@ -166,7 +166,7 @@ class FileWriteTool(BaseTool):
         rows = content.get("rows", [])
 
         buf = io.StringIO()
-        writer = csv.writer(buf)
+        writer = csv.writer(buf, lineterminator="\n")
         if headers:
             writer.writerow(headers)
         writer.writerows(rows)
