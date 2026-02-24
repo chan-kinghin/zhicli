@@ -124,9 +124,7 @@ class TestFrontmatterErrors:
     def test_malformed_frontmatter_yaml(self, tmp_path: Path) -> None:
         skill_dir = tmp_path / "bad-yaml"
         skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: [broken yaml\n---\n\nBody.\n"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: [broken yaml\n---\n\nBody.\n")
         with pytest.raises(SkillError, match="Malformed YAML frontmatter"):
             load_skill_md(skill_dir / "SKILL.md")
 
@@ -140,18 +138,14 @@ class TestFrontmatterErrors:
     def test_missing_required_fields(self, tmp_path: Path) -> None:
         skill_dir = tmp_path / "missing-fields"
         skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: incomplete\n---\n\nBody.\n"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: incomplete\n---\n\nBody.\n")
         with pytest.raises(SkillError, match="Missing required frontmatter fields"):
             load_skill_md(skill_dir / "SKILL.md")
 
     def test_missing_required_fields_lists_which(self, tmp_path: Path) -> None:
         skill_dir = tmp_path / "which-fields"
         skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text(
-            "---\nname: incomplete\n---\n\nBody.\n"
-        )
+        (skill_dir / "SKILL.md").write_text("---\nname: incomplete\n---\n\nBody.\n")
         with pytest.raises(SkillError) as exc_info:
             load_skill_md(skill_dir / "SKILL.md")
         msg = str(exc_info.value)

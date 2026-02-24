@@ -203,7 +203,9 @@ class TestSkillCreateMdReferences:
         assert refs_dir.is_dir()
         assert (refs_dir / "ref1.md").exists()
         assert (refs_dir / "ref2.md").exists()
-        assert (refs_dir / "ref1.md").read_text(encoding="utf-8") == "# Reference 1\n\nSome knowledge."
+        assert (refs_dir / "ref1.md").read_text(
+            encoding="utf-8"
+        ) == "# Reference 1\n\nSome knowledge."
 
     def test_skips_nonexistent_reference_files(self, tmp_path: Path) -> None:
         skills_dir = tmp_path / "skills"
@@ -394,15 +396,16 @@ class TestSkillCreateValidation:
 
     def test_missing_tools(self, tmp_path: Path) -> None:
         tool = SkillCreateTool(skills_dir=tmp_path)
-        result = tool.execute(
-            name="test", description="d", system_prompt="p", tools=[]
-        )
+        result = tool.execute(name="test", description="d", system_prompt="p", tools=[])
         assert "Error" in result
 
     def test_invalid_format(self, tmp_path: Path) -> None:
         tool = SkillCreateTool(skills_dir=tmp_path)
         result = tool.execute(
-            name="test", description="d", system_prompt="p", tools=["t"],
+            name="test",
+            description="d",
+            system_prompt="p",
+            tools=["t"],
             format="invalid",
         )
         assert "Error" in result
@@ -446,9 +449,7 @@ class TestSkillCreateDefaultModel:
         )
         assert "created" in result.lower()
 
-        data = yaml.safe_load(
-            (tmp_path / "myskill2.yaml").read_text(encoding="utf-8")
-        )
+        data = yaml.safe_load((tmp_path / "myskill2.yaml").read_text(encoding="utf-8"))
         assert data["model"] == "glm-4-air"
 
     def test_default_model_omitted_in_skill_md(self, tmp_path: Path) -> None:
