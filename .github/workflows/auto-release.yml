@@ -6,6 +6,7 @@ on:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   bump-and-tag:
@@ -43,3 +44,8 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git tag "${{ steps.next.outputs.version }}"
           git push origin "${{ steps.next.outputs.version }}"
+
+      - name: Trigger release workflow
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run release.yml -f tag=${{ steps.next.outputs.version }}
