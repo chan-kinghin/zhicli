@@ -77,8 +77,8 @@ file_read(path="reports/q4-summary.md")
 - **禁止符号链接逃逸** -- 解析后的路径必须在输出目录内
 - **输出上限**：50KB（每次工具响应）
 
-!!! warning "可选依赖"
-    `.xlsx` 输出需要 `openpyxl`（未安装时回退到 CSV）。`.docx` 输出需要 `python-docx`（未安装时回退到 `.md`）。
+!!! tip "完整格式支持"
+    `.xlsx` 和 `.docx` 输出已包含在默认安装中，无需额外安装。
 
 ### 示例
 

@@ -32,12 +32,6 @@ Get from zero to your first conversation in under 5 minutes.
 pip install zhicli
 ```
 
-For Excel (.xlsx) and Word (.docx) support, install with extras:
-
-```bash
-pip install "zhicli[all]"
-```
-
 Verify the installation:
 
 ```bash
@@ -307,8 +301,8 @@ In approve mode, zhi asks for confirmation before creating the file.
 | Plain text | `.md`, `.txt` | Direct text |
 | JSON | `.json` | Any JSON structure |
 | CSV | `.csv` | Headers + rows |
-| Excel | `.xlsx` | Sheet data (requires openpyxl) |
-| Word | `.docx` | Markdown text (requires python-docx) |
+| Excel | `.xlsx` | Sheet data |
+| Word | `.docx` | Markdown text |
 
 ### Combining Read + Process + Write
 
@@ -322,7 +316,7 @@ zhi chains file_read, analysis, and file_write calls automatically.
     - `file_write` creates new files only -- it cannot overwrite existing files.
     - All output goes to `zhi-output/`, keeping your original files safe.
     - Paths cannot contain `..`, preventing writes outside the working directory.
-    - Without openpyxl, Excel requests fall back to CSV. Without python-docx, Word requests fall back to Markdown. Install extras with: `pip install "zhicli[all]"`
+    - Excel (.xlsx) and Word (.docx) formats are supported out of the box.
 
 ---
 
@@ -775,4 +769,4 @@ Certain dangerous commands (like `rm -rf /`) are permanently blocked. This is a 
 
 **Q: Excel/Word output fails**
 
-Install optional dependencies: `pip install "zhicli[all]"`. Without them, Excel falls back to CSV and Word falls back to Markdown.
+Excel (.xlsx) and Word (.docx) are included in the default install. Make sure you're on the latest version: `pip install --upgrade zhicli`.

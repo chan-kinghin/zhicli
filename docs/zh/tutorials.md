@@ -22,12 +22,6 @@
 pip install zhicli
 ```
 
-如果需要 Excel (.xlsx) 和 Word (.docx) 文件支持，安装完整版：
-
-```bash
-pip install "zhicli[all]"
-```
-
 验证安装成功：
 
 ```bash
@@ -301,8 +295,8 @@ zhi 会调用 `file_write` 工具，提示你确认后（approve 模式下）写
 | 纯文本 | `.md`, `.txt` | 直接文本 |
 | JSON | `.json` | 任意 JSON |
 | CSV | `.csv` | headers + rows |
-| Excel | `.xlsx` | sheets 数据（需安装 openpyxl） |
-| Word | `.docx` | Markdown 文本（需安装 python-docx） |
+| Excel | `.xlsx` | sheets 数据 |
+| Word | `.docx` | Markdown 文本 |
 
 示例对话：
 
@@ -327,8 +321,7 @@ zhi 会依次调用 file_read 读取数据、分析内容、然后调用 file_wr
     - `file_write` 只能创建新文件，不能覆盖已有文件
     - 所有输出文件都在 `zhi-output/` 目录下，不会影响你的原始文件
     - 路径不允许包含 `..`，防止写入工作目录以外的位置
-    - 如果需要 Excel 或 Word 支持，确保安装了对应的依赖：`pip install "zhicli[all]"`
-    - 没有安装 openpyxl 时，Excel 请求会自动降级为 CSV；没有安装 python-docx 时，Word 请求会降级为 Markdown
+    - Excel (.xlsx) 和 Word (.docx) 格式开箱即用，无需额外安装
 
 ---
 
@@ -784,4 +777,4 @@ log_level: "INFO"
 
 **Q: 想用 Excel/Word 输出但报错**
 
-安装可选依赖：`pip install "zhicli[all]"`。未安装时 Excel 会降级为 CSV，Word 会降级为 Markdown。
+Excel (.xlsx) 和 Word (.docx) 已包含在默认安装中。请确认安装了最新版本：`pip install --upgrade zhicli`。

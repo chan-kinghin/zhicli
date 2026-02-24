@@ -143,8 +143,7 @@ zhi
 ## 安装与快速入门
 
 ```bash
-pip install zhicli          # 基础安装
-pip install "zhicli[all]"   # 含 Excel/Word 支持
+pip install zhicli          # 含 Excel/Word 支持
 ```
 
 要求 Python 3.10+。API 密钥从[智谱开放平台](https://open.bigmodel.cn)获取。
@@ -276,8 +275,7 @@ Composite skills (6):
 ## Install and Quick Start
 
 ```bash
-pip install zhicli          # basic install
-pip install "zhicli[all]"   # with Excel/Word support
+pip install zhicli          # includes Excel/Word support
 ```
 
 Requires Python 3.10+. Get an API key from [Zhipu Open Platform](https://open.bigmodel.cn).

@@ -77,8 +77,8 @@ Write a new file to the output directory (`zhi-output/`).
 - **No symlink escapes** -- resolved paths must stay within the output directory
 - **Output cap**: 50KB per tool response
 
-!!! warning "Optional dependencies"
-    `.xlsx` output requires `openpyxl` (falls back to CSV if not installed). `.docx` output requires `python-docx` (falls back to `.md` if not installed).
+!!! tip "Full format support"
+    `.xlsx` and `.docx` output are included in the default install -- no extras needed.
 
 ### Example
 

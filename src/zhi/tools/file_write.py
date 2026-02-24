@@ -8,6 +8,9 @@ import json
 from pathlib import Path
 from typing import Any, ClassVar
 
+import docx
+import openpyxl
+
 from zhi.tools.base import BaseTool
 
 _MAX_OUTPUT_SIZE = 50 * 1024  # 50KB tool output cap
@@ -187,28 +190,6 @@ class FileWriteTool(BaseTool):
                 '[...], "rows": [[...]]}]}.'
             )
 
-        try:
-            import openpyxl
-        except ImportError:
-            # Fallback to CSV
-            csv_path = path.with_suffix(".csv")
-            if csv_path.exists():
-                return (
-                    "Error: openpyxl not installed. Fallback CSV file already exists."
-                )
-            sheets = content.get("sheets", [])
-            if sheets:
-                first = sheets[0]
-                csv_content = {
-                    "headers": first.get("headers", []),
-                    "rows": first.get("rows", []),
-                }
-                rel = str(csv_path.relative_to(self._output_dir.resolve()))
-                return self._write_csv(csv_path, csv_content, rel)
-            return (
-                "Error: openpyxl not installed and no sheet data to fall back to CSV."
-            )
-
         wb = openpyxl.Workbook()
         sheets = content.get("sheets", [])
 
@@ -244,19 +225,6 @@ class FileWriteTool(BaseTool):
             return 'Error: DOCX content must be {"content": "markdown string"}.'
 
         md_text = content.get("content", "")
-
-        try:
-            import docx
-        except ImportError:
-            # Fallback to markdown
-            md_path = path.with_suffix(".md")
-            if md_path.exists():
-                return (
-                    "Error: python-docx not installed. "
-                    "Fallback .md file already exists."
-                )
-            rel = str(md_path.relative_to(self._output_dir.resolve()))
-            return self._write_text(md_path, md_text, rel)
 
         doc = docx.Document()
         # Simple paragraph splitting

@@ -363,7 +363,7 @@ CSV-to-CSV processing also works:
 $ zhi -c "Read user-list.csv, remove duplicates, sort by registration date, save as a new CSV"
 ```
 
-**Result:** Data cleaned, aggregated, or transformed and saved in the requested format. Excel output requires openpyxl (`pip install "zhicli[all]"`); without it, output falls back to CSV.
+**Result:** Data cleaned, aggregated, or transformed and saved in the requested format. Excel (.xlsx) and Word (.docx) output are supported out of the box.
 
 ---
 
