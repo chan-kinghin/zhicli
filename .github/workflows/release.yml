@@ -39,9 +39,9 @@ jobs:
       - name: Run unit tests
         run: pytest tests/unit/ -v --tb=short
       - name: Run integration tests
-        run: pytest tests/integration/ -v --tb=short || test $? -eq 5
+        run: python -c "import subprocess,sys; rc=subprocess.call([sys.executable,'-m','pytest','tests/integration/','-v','--tb=short']); sys.exit(0 if rc in (0,5) else rc)"
       - name: Run e2e tests
-        run: pytest tests/e2e/ -v --tb=short || test $? -eq 5
+        run: python -c "import subprocess,sys; rc=subprocess.call([sys.executable,'-m','pytest','tests/e2e/','-v','--tb=short']); sys.exit(0 if rc in (0,5) else rc)"
 
   build:
     name: Build distribution
