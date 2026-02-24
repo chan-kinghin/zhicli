@@ -7,7 +7,10 @@ multi-line input, and CJK/IME support.
 from __future__ import annotations
 
 import logging
+import os
 import re
+import sys
+import threading
 import time
 from pathlib import Path
 from typing import Any
@@ -15,9 +18,16 @@ from typing import Any
 import platformdirs
 from prompt_toolkit import PromptSession
 from prompt_toolkit.completion import Completer, Completion
+from prompt_toolkit.formatted_text import HTML
 from prompt_toolkit.history import FileHistory, InMemoryHistory
 
-from zhi.agent import Context, PermissionMode, Role, safe_parse_args
+from zhi.agent import (
+    AgentInterruptedError,
+    Context,
+    PermissionMode,
+    Role,
+    safe_parse_args,
+)
 from zhi.agent import run as agent_run
 from zhi.files import FileAttachment, extract_files
 from zhi.i18n import prepend_preamble, t
@@ -153,14 +163,37 @@ class ReplSession:
             skills_fn=lambda: list(self._skills_cache.get().keys()),
         )
 
+        from zhi.keybindings import create_key_bindings
+
+        toolbar = self._get_toolbar if not ui._no_color else None
         self._session: PromptSession[str] = PromptSession(
             history=self._history,
             completer=self._completer,
+            key_bindings=create_key_bindings(),
+            multiline=True,
+            bottom_toolbar=toolbar,
         )
 
     def _get_prompt(self) -> str:
         """Get the prompt string."""
         return "zhi> "
+
+    @staticmethod
+    def _prompt_continuation(width: int, line_number: int, is_soft_wrap: bool) -> str:
+        """Return continuation prompt for multi-line input."""
+        return "...  "
+
+    def _get_toolbar(self) -> HTML:
+        """Return bottom toolbar content showing session state."""
+        thinking = t("repl.on") if self._context.thinking_enabled else t("repl.off")
+        tokens = f"{self._context.session_tokens:,}"
+        parts = [
+            f" {self._context.model}",
+            f"{t('toolbar.mode')}: {self._context.permission_mode.value}",
+            f"{t('toolbar.think')}: {thinking}",
+            f"{t('toolbar.tokens')}: {tokens}",
+        ]
+        return HTML(f"<b>{' | '.join(parts)}</b>")
 
     def run(self) -> None:
         """Run the REPL loop until /exit or Ctrl+D."""
@@ -171,7 +204,10 @@ class ReplSession:
 
         while self._running:
             try:
-                user_input = self._session.prompt(self._get_prompt())
+                user_input = self._session.prompt(
+                    self._get_prompt(),
+                    prompt_continuation=self._prompt_continuation,
+                )
             except KeyboardInterrupt:
                 # Ctrl+C: cancel current input, return to prompt
                 continue
@@ -180,23 +216,10 @@ class ReplSession:
                 self._handle_exit()
                 break
 
-            user_input = self._handle_continuation(user_input)
-
             if not user_input.strip():
                 continue
 
             self.handle_input(user_input.strip())
-
-    def _handle_continuation(self, text: str) -> str:
-        """Handle multi-line input with backslash continuation."""
-        while text.endswith("\\"):
-            text = text[:-1]  # Remove trailing backslash
-            try:
-                continuation = self._session.prompt("...  ")
-                text += "\n" + continuation
-            except (KeyboardInterrupt, EOFError):
-                break
-        return text
 
     def handle_input(self, text: str) -> str | None:
         """Handle user input: detect files, dispatch commands, or send to agent."""
@@ -415,7 +438,7 @@ class ReplSession:
 
         try:
             result = agent_run(skill_context)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, AgentInterruptedError):
             self._ui.print(t("repl.interrupted"))
             return "Interrupted"
         except Exception as e:
@@ -565,6 +588,54 @@ class ReplSession:
         self._ui.print(msg)
         return msg
 
+    @staticmethod
+    def _start_esc_watcher(cancel_event: threading.Event) -> threading.Event:
+        """Start a daemon thread that watches for ESC key to cancel generation.
+
+        Returns a stop_event to signal the watcher to exit.
+        """
+        stop_event = threading.Event()
+
+        def _watch() -> None:
+            try:
+                if sys.platform == "win32":
+                    import msvcrt
+
+                    while not stop_event.is_set():
+                        if msvcrt.kbhit():
+                            ch = msvcrt.getch()
+                            if ch == b"\x1b":
+                                cancel_event.set()
+                                return
+                        stop_event.wait(0.05)
+                else:
+                    import select
+                    import termios
+                    import tty
+
+                    fd = sys.stdin.fileno()
+                    try:
+                        old_settings = termios.tcgetattr(fd)
+                    except termios.error:
+                        return  # Not a TTY
+                    try:
+                        tty.setcbreak(fd)
+                        while not stop_event.is_set():
+                            ready, _, _ = select.select([fd], [], [], 0.05)
+                            if ready:
+                                ch = os.read(fd, 1)
+                                if ch == b"\x1b":
+                                    cancel_event.set()
+                                    return
+                    finally:
+                        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+            except Exception:
+                pass  # Silently ignore errors in watcher
+
+        thread = threading.Thread(target=_watch, daemon=True)
+        thread.start()
+        return stop_event
+
     def _handle_chat(
         self,
         text: str,
@@ -592,9 +663,15 @@ class ReplSession:
         }
         self._context.conversation.append(user_msg)
 
+        # Set up ESC watcher for cancellation
+        self._context.cancel_event.clear()
+        stop_event: threading.Event | None = None
+        if sys.stdin.isatty():
+            stop_event = self._start_esc_watcher(self._context.cancel_event)
+
         try:
             result = agent_run(self._context)
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, AgentInterruptedError):
             self._ui.print(t("repl.interrupted"))
             return None
         except Exception as e:
@@ -614,6 +691,11 @@ class ReplSession:
                 )
             )
             return None
+        finally:
+            # Stop the ESC watcher thread
+            if stop_event is not None:
+                stop_event.set()
+            self._context.cancel_event.clear()
 
         if result is None:
             self._ui.show_warning(t("repl.max_turns"))

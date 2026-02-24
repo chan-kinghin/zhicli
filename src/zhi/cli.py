@@ -60,6 +60,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     subparsers = parser.add_subparsers(dest="subcommand")
 
+    subparsers.add_parser(
+        "update",
+        help=t("cli.update_help"),
+    )
+
     run_parser = subparsers.add_parser(
         "run",
         help="Run a skill",
@@ -230,6 +235,39 @@ def _run_pipe(config: Any, ui: Any) -> None:
     _run_oneshot(config, ui, stdin_text)
 
 
+def _run_update() -> None:
+    """Run the update subcommand."""
+    from zhi.updater import perform_update
+
+    success, message = perform_update()
+    print(message)
+    if not success:
+        sys.exit(1)
+
+
+def _maybe_check_update(config: Any) -> None:
+    """Show a notice if a new version is available (non-blocking, cached).
+
+    Skipped when:
+    - ZHI_NO_UPDATE_CHECK=1 is set
+    - config.auto_update_check is False
+    """
+    if os.environ.get("ZHI_NO_UPDATE_CHECK") == "1":
+        return
+    if not getattr(config, "auto_update_check", True):
+        return
+
+    from zhi import __version__
+    from zhi.updater import check_for_update, cleanup_old_exe
+
+    # Clean up leftover .old exe from previous update
+    cleanup_old_exe()
+
+    result = check_for_update(__version__)
+    if result is not None:
+        print(t("update.available", current=result["current"], latest=result["latest"]))
+
+
 def _run_repl(config: Any, ui: Any) -> None:
     """Launch the interactive REPL."""
     from zhi.repl import ReplSession
@@ -267,6 +305,11 @@ def main(argv: list[str] | None = None) -> None:
         from zhi.config import run_wizard
 
         run_wizard()
+        return
+
+    # Handle 'update' subcommand (no API key needed)
+    if args.subcommand == "update":
+        _run_update()
         return
 
     # Load config for all remaining modes
@@ -308,5 +351,8 @@ def main(argv: list[str] | None = None) -> None:
 
         run_wizard()
         return
+
+    # Check for updates on REPL startup (cached, non-blocking)
+    _maybe_check_update(config)
 
     _run_repl(config, ui)

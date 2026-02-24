@@ -116,7 +116,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "  /verbose           Toggle verbose output\n"
             "  /exit              Exit zhi\n"
             "\n"
-            "Tip: End a line with \\ for multi-line input."
+            "Tip: Ctrl+J for newline, Enter to send. Esc to interrupt."
         ),
         "repl.unknown_cmd": "Unknown command: {command}. Type /help for available commands.",
         "repl.mode_auto": "Mode switched to auto",
@@ -152,6 +152,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "repl.on": "on",
         "repl.off": "off",
         "repl.max_turns": "Max turns reached without a final response",
+        "repl.escape_hint": "Press Esc to interrupt generation",
+        # -- Toolbar --
+        "toolbar.mode": "mode",
+        "toolbar.think": "think",
+        "toolbar.tokens": "tokens",
         # -- Files --
         "files.extracting": "Extracting content from {count} file(s)...",
         "files.extracted": "Attached {count} file(s)",
@@ -169,6 +174,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ui.files_read": "{count} file{s} read",
         "ui.files_written": "{count} file{s} written",
         "ui.tool_done": "  done",
+        "ui.tool_done_suffix": "done",
         "ui.thinking_prefix": "[thinking] ",
         "ui.done_fallback": "done",
         "ui.done_prefix": "Done: ",
@@ -204,6 +210,20 @@ _STRINGS: dict[str, dict[str, str]] = {
         "cli.no_api_key": "Error: No API key configured. Run `zhi --setup` first.",
         "cli.unknown_skill": "Error: Unknown skill '{skill}'. Available: {available}",
         "cli.no_stdin": "Error: No input received from stdin.",
+        # -- Update --
+        "update.checking": "Checking for updates...",
+        "update.available": "Update available: v{current} → v{latest}. Run `zhi update` to upgrade.",
+        "update.up_to_date": "zhi v{current} is up to date.",
+        "update.updating_pip": "Updating via pip...",
+        "update.updating_exe": "Downloading update...",
+        "update.success": "Updated successfully to v{version}. Please restart zhi.",
+        "update.failed": "Update failed: {error}",
+        "update.check_failed": "Could not check for updates: {error}",
+        "update.disabled": "Update check is disabled.",
+        "update.download_progress": "Downloading: {percent}%",
+        "update.restarting": "Restarting zhi...",
+        "update.cleanup": "Cleaned up old version files.",
+        "cli.update_help": "Check for updates and self-update",
     },
     "zh": {
         # -- Banner --
@@ -228,7 +248,7 @@ _STRINGS: dict[str, dict[str, str]] = {
             "  /verbose           \u5207\u6362\u8be6\u7ec6\u8f93\u51fa\n"
             "  /exit              \u9000\u51fa zhi\n"
             "\n"
-            "\u63d0\u793a\uff1a\u884c\u672b\u8f93\u5165 \\ \u53ef\u6362\u884c\u7ee7\u7eed\u8f93\u5165\u3002"
+            "\u63d0\u793a\uff1aCtrl+J \u6362\u884c\uff0cEnter \u53d1\u9001\u3002Esc \u4e2d\u65ad\u751f\u6210\u3002"
         ),
         "repl.unknown_cmd": "\u672a\u77e5\u547d\u4ee4\uff1a{command}\u3002\u8f93\u5165 /help \u67e5\u770b\u53ef\u7528\u547d\u4ee4\u3002",
         "repl.mode_auto": "\u5df2\u5207\u6362\u5230\u81ea\u52a8\u6a21\u5f0f",
@@ -264,6 +284,11 @@ _STRINGS: dict[str, dict[str, str]] = {
         "repl.on": "\u5f00",
         "repl.off": "\u5173",
         "repl.max_turns": "\u5df2\u8fbe\u5230\u6700\u5927\u8f6e\u6570\uff0c\u672a\u83b7\u5f97\u6700\u7ec8\u54cd\u5e94",
+        "repl.escape_hint": "\u6309 Esc \u4e2d\u65ad\u751f\u6210",
+        # -- Toolbar --
+        "toolbar.mode": "\u6a21\u5f0f",
+        "toolbar.think": "\u601d\u8003",
+        "toolbar.tokens": "Token",
         # -- Files --
         "files.extracting": "\u6b63\u5728\u63d0\u53d6 {count} \u4e2a\u6587\u4ef6\u7684\u5185\u5bb9...",
         "files.extracted": "\u5df2\u9644\u52a0 {count} \u4e2a\u6587\u4ef6",
@@ -281,6 +306,7 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ui.files_read": "{count} \u4e2a\u6587\u4ef6\u5df2\u8bfb\u53d6",
         "ui.files_written": "{count} \u4e2a\u6587\u4ef6\u5df2\u5199\u5165",
         "ui.tool_done": "  \u5b8c\u6210",
+        "ui.tool_done_suffix": "\u5b8c\u6210",
         "ui.thinking_prefix": "[\u601d\u8003] ",
         "ui.done_fallback": "\u5b8c\u6210",
         "ui.done_prefix": "\u5b8c\u6210\uff1a",
@@ -316,6 +342,20 @@ _STRINGS: dict[str, dict[str, str]] = {
         "cli.no_api_key": "\u9519\u8bef\uff1a\u672a\u914d\u7f6e API \u5bc6\u94a5\u3002\u8bf7\u5148\u8fd0\u884c `zhi --setup`\u3002",
         "cli.unknown_skill": "\u9519\u8bef\uff1a\u672a\u77e5\u6280\u80fd '{skill}'\u3002\u53ef\u7528\uff1a{available}",
         "cli.no_stdin": "\u9519\u8bef\uff1a\u672a\u4ece\u6807\u51c6\u8f93\u5165\u63a5\u6536\u5230\u5185\u5bb9\u3002",
+        # -- Update --
+        "update.checking": "正在检查更新...",
+        "update.available": "发现新版本：v{current} → v{latest}。运行 `zhi update` 升级。",
+        "update.up_to_date": "zhi v{current} 已是最新版本。",
+        "update.updating_pip": "正在通过 pip 更新...",
+        "update.updating_exe": "正在下载更新...",
+        "update.success": "更新成功，已升级到 v{version}。请重启 zhi。",
+        "update.failed": "更新失败：{error}",
+        "update.check_failed": "无法检查更新：{error}",
+        "update.disabled": "更新检查已禁用。",
+        "update.download_progress": "下载中：{percent}%",
+        "update.restarting": "正在重启 zhi...",
+        "update.cleanup": "已清理旧版本文件。",
+        "cli.update_help": "检查更新并自动升级",
     },
 }
 

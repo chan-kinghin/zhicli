@@ -141,6 +141,109 @@ class TestCliBuildContext:
         assert ctx.conversation[1]["role"] == "user"
 
 
+class TestCliUpdate:
+    """Test 'update' subcommand."""
+
+    def test_update_subcommand_calls_perform_update(
+        self, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        from zhi.cli import main
+
+        with patch("zhi.updater.perform_update", return_value=(True, "Up to date")):
+            main(["update"])
+        captured = capsys.readouterr()
+        assert "Up to date" in captured.out
+
+    def test_update_subcommand_exits_1_on_failure(self) -> None:
+        from zhi.cli import main
+
+        with (
+            patch(
+                "zhi.updater.perform_update",
+                return_value=(False, "Update failed"),
+            ),
+            pytest.raises(SystemExit) as exc_info,
+        ):
+            main(["update"])
+        assert exc_info.value.code == 1
+
+    def test_update_no_api_key_needed(self, capsys: pytest.CaptureFixture[str]) -> None:
+        """update subcommand should work without an API key."""
+        from zhi.cli import main
+
+        with patch("zhi.updater.perform_update", return_value=(True, "OK")):
+            # No API key set, should still work
+            main(["update"])
+        captured = capsys.readouterr()
+        assert "OK" in captured.out
+
+
+class TestMaybeCheckUpdate:
+    """Test startup update check."""
+
+    def test_check_shows_notice_when_update_available(
+        self,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        from zhi.cli import _maybe_check_update
+
+        config = MagicMock(auto_update_check=True)
+        with (
+            patch("zhi.__version__", "1.0.0"),
+            patch(
+                "zhi.updater.check_for_update",
+                return_value={"current": "1.0.0", "latest": "2.0.0"},
+            ),
+            patch("zhi.updater.cleanup_old_exe"),
+        ):
+            _maybe_check_update(config)
+        captured = capsys.readouterr()
+        assert "2.0.0" in captured.out
+
+    def test_check_silent_when_up_to_date(
+        self,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        from zhi.cli import _maybe_check_update
+
+        config = MagicMock(auto_update_check=True)
+        with (
+            patch("zhi.__version__", "1.0.0"),
+            patch("zhi.updater.check_for_update", return_value=None),
+            patch("zhi.updater.cleanup_old_exe"),
+        ):
+            _maybe_check_update(config)
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+    def test_check_skipped_by_env_var(
+        self,
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from zhi.cli import _maybe_check_update
+
+        monkeypatch.setenv("ZHI_NO_UPDATE_CHECK", "1")
+        config = MagicMock(auto_update_check=True)
+        # Should not even import updater
+        _maybe_check_update(config)
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+    def test_check_skipped_by_config(
+        self,
+        capsys: pytest.CaptureFixture[str],
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from zhi.cli import _maybe_check_update
+
+        monkeypatch.delenv("ZHI_NO_UPDATE_CHECK", raising=False)
+        config = MagicMock(auto_update_check=False)
+        _maybe_check_update(config)
+        captured = capsys.readouterr()
+        assert captured.out == ""
+
+
 class TestRequireApiKey:
     """Test _require_api_key helper."""
 

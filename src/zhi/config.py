@@ -42,6 +42,7 @@ class ZhiConfig:
     max_turns: int = 30
     log_level: str = "INFO"
     language: str = "auto"
+    auto_update_check: bool = True
 
     def validate(self) -> list[str]:
         """Validate config and return list of warnings."""

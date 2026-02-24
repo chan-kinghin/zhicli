@@ -36,8 +36,19 @@ class TestUINoColor:
         output = mock_out.getvalue()
         assert "I need to think about this" in output
 
-    def test_show_tool_start(self) -> None:
+    def test_show_tool_start_compact(self) -> None:
+        """Non-verbose mode shows compact single-line output."""
         ui = self._make_ui()
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "test.txt"})
+        output = mock_out.getvalue()
+        assert "file_read" in output
+        assert "..." in output
+
+    def test_show_tool_start_verbose(self) -> None:
+        """Verbose mode shows full [TOOL] output with args."""
+        ui = self._make_ui()
+        ui.verbose = True
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
             ui.show_tool_start("file_read", {"path": "test.txt"})
         output = mock_out.getvalue()

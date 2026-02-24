@@ -26,6 +26,7 @@ class UI:
         self._verbose = verbose
         self._tool_step = 0
         self._tool_total = 0
+        self._stream_buffer: str = ""
 
         if not self._no_color:
             from rich.console import Console
@@ -43,20 +44,34 @@ class UI:
         self._verbose = value
 
     def stream(self, text: str) -> None:
-        """Display streamed text content."""
+        """Buffer streamed text for markdown rendering at stream_end()."""
         if self._no_color:
             print(text, end="", flush=True)
             return
-        from rich.text import Text
-
-        self._console.print(Text(text), end="")
+        self._stream_buffer += text
 
     def stream_end(self) -> None:
-        """End a streaming block with a newline."""
+        """Render buffered stream content as markdown, then clear buffer."""
         if self._no_color:
             print()
-        else:
+            return
+
+        buf = self._stream_buffer
+        self._stream_buffer = ""
+
+        if not buf:
             self._console.print()
+            return
+
+        try:
+            from rich.markdown import Markdown
+
+            md = Markdown(buf)
+            self._console.print(md)
+        except Exception:
+            from rich.text import Text
+
+            self._console.print(Text(buf))
 
     def show_thinking(self, text: str) -> None:
         """Display thinking text in dim/italic."""
@@ -84,25 +99,38 @@ class UI:
         if len(args_str) > 80:
             args_str = args_str[:77] + "..."
 
-        if self._no_color:
+        if self._verbose:
+            # Verbose: full two-line output
+            if self._no_color:
+                if self._tool_total > 0:
+                    step = self._tool_step
+                    total = self._tool_total
+                    print(f"[TOOL] [{step}/{total}] {name}: {args_str}")
+                else:
+                    print(f"[TOOL] {name}: {args_str}")
+                return
+            from rich.text import Text
+
             if self._tool_total > 0:
-                step = self._tool_step
-                total = self._tool_total
-                print(f"[TOOL] [{step}/{total}] {name}: {args_str}")
+                prefix = f"[{self._tool_step}/{self._tool_total}] "
             else:
-                print(f"[TOOL] {name}: {args_str}")
-            return
-
-        from rich.text import Text
-
-        if self._tool_total > 0:
-            prefix = f"[{self._tool_step}/{self._tool_total}] "
+                prefix = ""
+            text = Text(f"{prefix}{name}: ", style="bold cyan")
+            text.append(args_str, style="dim")
+            self._console.print(text)
         else:
-            prefix = ""
+            # Compact: single line, no newline yet (show_tool_end completes it)
+            if self._tool_total > 0:
+                prefix = f"[{self._tool_step}/{self._tool_total}] "
+            else:
+                prefix = ""
+            if self._no_color:
+                print(f"  {prefix}{name} ...", end="", flush=True)
+            else:
+                from rich.text import Text
 
-        text = Text(f"{prefix}{name}: ", style="bold cyan")
-        text.append(args_str, style="dim")
-        self._console.print(text)
+                text = Text(f"  {prefix}{name} ...", style="dim cyan")
+                self._console.print(text, end="")
 
     def show_tool_end(self, name: str, result: str) -> None:
         """Display tool execution result."""
@@ -117,12 +145,13 @@ class UI:
                 text.append(display, style="dim")
                 self._console.print(text)
         else:
+            # Compact: complete the single line started by show_tool_start
             if self._no_color:
-                print(t("ui.tool_done"))
+                print(f" {t('ui.tool_done_suffix')}")
             else:
                 from rich.text import Text
 
-                text = Text(t("ui.tool_done"), style="dim green")
+                text = Text(f" {t('ui.tool_done_suffix')}", style="dim green")
                 self._console.print(text)
 
     def show_spinner(self, message: str) -> Any:

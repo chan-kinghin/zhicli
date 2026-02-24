@@ -22,6 +22,7 @@ class TestZhiConfig:
         assert cfg.output_dir == "zhi-output"
         assert cfg.max_turns == 30
         assert cfg.log_level == "INFO"
+        assert cfg.auto_update_check is True
 
     def test_has_api_key_false_when_empty(self) -> None:
         cfg = ZhiConfig()

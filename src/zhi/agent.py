@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import logging
+import threading
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import Enum
@@ -74,6 +75,7 @@ class Context:
     session_tokens: int = 0
     max_turns: int = 30
     thinking_enabled: bool = True
+    cancel_event: threading.Event = field(default_factory=threading.Event)
     # Callbacks
     on_stream: Callable[[str], None] | None = None
     on_thinking: Callable[[str], None] | None = None
@@ -107,6 +109,10 @@ def run(context: Context) -> str | None:
     """
     for turn in range(context.max_turns):
         logger.debug("Agent turn %d/%d", turn + 1, context.max_turns)
+
+        # Check for cancellation at the start of each turn
+        if context.cancel_event.is_set():
+            raise AgentInterruptedError("Cancelled by user")
 
         if context.on_waiting:
             context.on_waiting(context.model)
@@ -161,6 +167,10 @@ def run(context: Context) -> str | None:
 
         # Execute each tool call
         for call in tool_calls:
+            # Check for cancellation between tool calls
+            if context.cancel_event.is_set():
+                raise AgentInterruptedError("Cancelled by user")
+
             func_name = call["function"]["name"]
             call_id = call["id"]
 
