@@ -1,0 +1,45 @@
+name: Auto Release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  bump-and-tag:
+    name: Bump patch version and tag
+    runs-on: ubuntu-latest
+    # Skip if the push is from the auto-release bot itself (tag push)
+    if: "!startsWith(github.event.head_commit.message, 'chore: bump version')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get latest tag
+        id: latest
+        run: |
+          TAG=$(git tag --list 'v*' --sort=-v:refname | head -1)
+          echo "tag=${TAG:-v0.0.0}" >> "$GITHUB_OUTPUT"
+
+      - name: Compute next patch version
+        id: next
+        run: |
+          TAG="${{ steps.latest.outputs.tag }}"
+          # Strip leading 'v'
+          VERSION="${TAG#v}"
+          MAJOR=$(echo "$VERSION" | cut -d. -f1)
+          MINOR=$(echo "$VERSION" | cut -d. -f2)
+          PATCH=$(echo "$VERSION" | cut -d. -f3)
+          NEXT="v${MAJOR}.${MINOR}.$((PATCH + 1))"
+          echo "version=$NEXT" >> "$GITHUB_OUTPUT"
+          echo "Bumping $TAG -> $NEXT"
+
+      - name: Create and push tag
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "${{ steps.next.outputs.version }}"
+          git push origin "${{ steps.next.outputs.version }}"
