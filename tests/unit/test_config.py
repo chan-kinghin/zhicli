@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import stat
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
@@ -194,6 +195,10 @@ class TestSaveConfig:
         save_config(cfg, config_dir=config_dir)
         assert (config_dir / "config.yaml").exists()
 
+    @pytest.mark.skipif(
+        sys.platform == "win32",
+        reason="Unix file permissions (chmod 0o600) not supported on Windows",
+    )
     def test_save_config_permissions(self, tmp_path: Path) -> None:
         cfg = ZhiConfig(api_key="sk-test")
         path = save_config(cfg, config_dir=tmp_path)

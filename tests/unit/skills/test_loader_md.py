@@ -158,7 +158,8 @@ class TestNameValidation:
         skill_dir = tmp_path / "bad-name"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: '../traversal'\ndescription: Bad\ntools: [file_read]\n---\n\nBody.\n"
+            "---\nname: '../traversal'\n"
+            "description: Bad\ntools: [file_read]\n---\n\nBody.\n"
         )
         with pytest.raises(SkillError, match="Invalid skill name"):
             load_skill_md(skill_dir / "SKILL.md")
@@ -178,7 +179,9 @@ class TestToolsValidation:
         skill_dir = tmp_path / "desc-list"
         skill_dir.mkdir()
         (skill_dir / "SKILL.md").write_text(
-            "---\nname: baddesc\ndescription:\n  - not a string\ntools: [file_read]\n---\n\nBody.\n"
+            "---\nname: baddesc\n"
+            "description:\n  - not a string\n"
+            "tools: [file_read]\n---\n\nBody.\n"
         )
         with pytest.raises(SkillError, match="must be a string"):
             load_skill_md(skill_dir / "SKILL.md")

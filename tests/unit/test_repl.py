@@ -2,13 +2,21 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zhi.agent import Context, PermissionMode
 from zhi.config import ZhiConfig
 from zhi.ui import UI
+
+_skip_no_console = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="prompt_toolkit requires a console on Windows",
+)
 
 # --- Test helpers ---
 
@@ -51,6 +59,7 @@ def _make_repl(
 # --- Slash command tests ---
 
 
+@_skip_no_console
 class TestReplHelp:
     def test_repl_help_command(self, tmp_path: Path) -> None:
         repl = _make_repl(tmp_path=tmp_path)
@@ -78,6 +87,7 @@ class TestReplHelp:
             assert cmd in result
 
 
+@_skip_no_console
 class TestReplModes:
     def test_repl_auto_mode(self, tmp_path: Path) -> None:
         ctx = _make_context()
@@ -94,6 +104,7 @@ class TestReplModes:
         assert ctx.permission_mode == PermissionMode.APPROVE
 
 
+@_skip_no_console
 class TestReplModel:
     def test_repl_model_switch(self, tmp_path: Path) -> None:
         ctx = _make_context()
@@ -117,6 +128,7 @@ class TestReplModel:
         assert "glm-5" in result
 
 
+@_skip_no_console
 class TestReplThinking:
     def test_repl_think_command(self, tmp_path: Path) -> None:
         ctx = _make_context()
@@ -135,6 +147,7 @@ class TestReplThinking:
         assert ctx.thinking_enabled is False
 
 
+@_skip_no_console
 class TestReplExit:
     def test_repl_exit_command(self, tmp_path: Path) -> None:
         repl = _make_repl(tmp_path=tmp_path)
@@ -148,6 +161,7 @@ class TestReplExit:
         assert "Goodbye" in result
 
 
+@_skip_no_console
 class TestReplUnknown:
     def test_repl_unknown_slash_sent_to_chat(self, tmp_path: Path) -> None:
         """Unknown /words are sent to chat, not treated as commands."""
@@ -159,6 +173,7 @@ class TestReplUnknown:
         assert result == "response"
 
 
+@_skip_no_console
 class TestReplConversation:
     def test_repl_reset_confirmed(self, tmp_path: Path) -> None:
         ctx = _make_context(
@@ -210,6 +225,7 @@ class TestReplConversation:
         assert "Nothing to undo" in result
 
 
+@_skip_no_console
 class TestReplUsage:
     def test_repl_usage(self, tmp_path: Path) -> None:
         ctx = _make_context(session_tokens=2500)
@@ -218,6 +234,7 @@ class TestReplUsage:
         assert "2500" in result
 
 
+@_skip_no_console
 class TestReplVerbose:
     def test_repl_verbose_toggle(self, tmp_path: Path) -> None:
         repl = _make_repl(tmp_path=tmp_path)
@@ -227,6 +244,7 @@ class TestReplVerbose:
         assert "off" in result.lower()
 
 
+@_skip_no_console
 class TestReplRun:
     def test_repl_run_no_args(self, tmp_path: Path) -> None:
         repl = _make_repl(tmp_path=tmp_path)
@@ -294,6 +312,7 @@ class TestReplRun:
         assert "Usage" in result
 
 
+@_skip_no_console
 class TestReplSkill:
     def test_repl_skill_list(self, tmp_path: Path) -> None:
         repl = _make_repl(tmp_path=tmp_path)
@@ -321,6 +340,7 @@ class TestReplSkill:
         assert "Usage" in result
 
 
+@_skip_no_console
 class TestReplStatus:
     def test_repl_status(self, tmp_path: Path) -> None:
         ctx = _make_context(session_tokens=100)
@@ -330,6 +350,7 @@ class TestReplStatus:
         assert "approve" in result
 
 
+@_skip_no_console
 class TestReplSkillShow:
     def test_repl_skill_show_valid(self, tmp_path: Path) -> None:
         repl = _make_repl(tmp_path=tmp_path)
@@ -338,6 +359,7 @@ class TestReplSkillShow:
         # Should show skill info or not found - either is valid
 
 
+@_skip_no_console
 class TestReplChat:
     def test_repl_regular_text(self, tmp_path: Path) -> None:
         """Regular text is sent to the agent."""
@@ -361,6 +383,7 @@ class TestReplChat:
         assert user_msgs[0]["content"] == "Hello there"
 
 
+@_skip_no_console
 class TestReplEmptyInput:
     def test_repl_empty_input(self, tmp_path: Path) -> None:
         """Empty input is silently ignored in handle_input."""
@@ -373,6 +396,7 @@ class TestReplEmptyInput:
         assert result is not None or result is None  # No crash
 
 
+@_skip_no_console
 class TestReplEdgeCases:
     def test_edge_slash_only(self, tmp_path: Path) -> None:
         """Bare '/' is sent to chat, not treated as a command."""
@@ -424,6 +448,7 @@ class TestFilteredFileHistory:
             assert "password" not in line
 
 
+@_skip_no_console
 class TestReplFileAttachment:
     """Test file path detection and attachment in REPL input."""
 

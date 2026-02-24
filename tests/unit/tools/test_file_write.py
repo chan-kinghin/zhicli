@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import csv
-import io
 import json
 from pathlib import Path
 
@@ -64,9 +63,10 @@ class TestFileWriteCsv:
         result = tool.execute(path="people.csv", content=data)
         assert "File written" in result
 
-        content = (out / "people.csv").read_text(encoding="utf-8")
-        reader = csv.reader(io.StringIO(content))
-        rows = list(reader)
+        # Use newline="" for correct CSV line-ending handling on Windows
+        with open(out / "people.csv", encoding="utf-8", newline="") as f:
+            reader = csv.reader(f)
+            rows = list(reader)
         assert rows[0] == ["Name", "Age"]
         assert rows[1] == ["Alice", "30"]
 
@@ -174,7 +174,8 @@ class TestFileWritePathTraversal:
         tool = FileWriteTool(output_dir=out)
         result = tool.execute(path="/tmp/evil.txt", content="evil")
         assert "Error" in result
-        assert "Absolute" in result
+        # Unix: "Absolute" error; Windows: "outside" (/ not absolute)
+        assert "Absolute" in result or "outside" in result.lower()
 
 
 class TestFileWriteSymlinkAttackBlocked:

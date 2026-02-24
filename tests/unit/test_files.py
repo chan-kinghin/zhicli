@@ -2,12 +2,23 @@
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 from zhi.files import extract_files, find_file_paths
 
+# File path regex uses Unix-style forward-slash patterns; Windows paths
+# (C:\...) are not matched.  Skip path-detection tests on Windows.
+_skip_win = pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="file path detection regex is Unix-only (forward-slash paths)",
+)
 
+
+@_skip_win
 class TestFindFilePaths:
     """Test file path detection in user input."""
 
@@ -92,6 +103,7 @@ class TestFindFilePaths:
         assert paths == []  # Skipped gracefully, no crash
 
 
+@_skip_win
 class TestExtractFiles:
     """Test full extraction pipeline."""
 

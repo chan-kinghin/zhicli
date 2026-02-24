@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 from unittest.mock import MagicMock, patch
+
+import pytest
 
 from zhi.skills.loader import SkillConfig
 from zhi.tools import ToolRegistry, register_skill_tools
@@ -458,6 +461,10 @@ class TestRegisterSkillTools:
 # ── REPL Integration ─────────────────────────────────────────────────
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="prompt_toolkit requires a console on Windows",
+)
 class TestReplSkillCommands:
     def test_run_unknown_skill(self) -> None:
         """``/run unknown`` prints error with available skills."""

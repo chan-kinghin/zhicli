@@ -90,7 +90,8 @@ class TestFileReadSecurity:
         tool = FileReadTool(working_dir=tmp_path)
         result = tool.execute(path="/etc/passwd")
         assert "Error" in result
-        assert "Absolute" in result
+        # Unix: "Absolute" error; Windows: traversal (/ not absolute)
+        assert "Absolute" in result or "traversal" in result.lower()
 
     def test_rejects_path_traversal(self, tmp_path: Path) -> None:
         tool = FileReadTool(working_dir=tmp_path)
