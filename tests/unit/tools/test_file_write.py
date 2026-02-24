@@ -209,3 +209,12 @@ class TestFileWriteErrorCases:
         tool = FileWriteTool(output_dir=tmp_path)
         result = tool.execute(path="test.txt")
         assert "Error" in result
+
+
+class TestFileWriteCrossPlatform:
+    def test_path_validation_cross_platform(self, tmp_path: Path) -> None:
+        """Ensure path check works on all platforms (no hard-coded '/')."""
+        tool = FileWriteTool(output_dir=tmp_path)
+        result = tool.execute(path="test.txt", content="hello")
+        assert "File written" in result
+        assert "Error" not in result

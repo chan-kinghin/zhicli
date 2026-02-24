@@ -9,6 +9,7 @@ Provides:
 
 from __future__ import annotations
 
+import locale
 import os
 from typing import Any
 
@@ -43,6 +44,15 @@ def get_language() -> str:
     return _current_language
 
 
+def _get_system_locale() -> str | None:
+    """Get system locale string, works on all platforms including Windows."""
+    try:
+        loc = locale.getlocale()[0]
+        return loc
+    except (ValueError, AttributeError):
+        return None
+
+
 def resolve_language() -> str:
     """Resolve 'auto' to a concrete language code ('en' or 'zh').
 
@@ -50,7 +60,8 @@ def resolve_language() -> str:
     1. If language is explicitly set to 'en' or 'zh', use that.
     2. Check ZHI_LANGUAGE env var.
     3. Check LANG / LC_ALL env vars for 'zh' prefix.
-    4. Default to 'en'.
+    4. Check system locale via locale module (Windows fallback).
+    5. Default to 'en'.
     """
     if _current_language not in ("auto", ""):
         return _current_language
@@ -63,6 +74,11 @@ def resolve_language() -> str:
         val = os.environ.get(var, "")
         if val.startswith("zh"):
             return "zh"
+
+    # Fallback: check system locale (works on Windows where LANG is unset)
+    sys_locale = _get_system_locale()
+    if sys_locale and sys_locale.startswith("zh"):
+        return "zh"
 
     return "en"
 
@@ -136,6 +152,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "repl.on": "on",
         "repl.off": "off",
         "repl.max_turns": "Max turns reached without a final response",
+        # -- Files --
+        "files.extracting": "Extracting content from {count} file(s)...",
+        "files.extracted": "Attached {count} file(s)",
+        "files.not_found": "File not found: {path}",
+        "files.unsupported": "Unsupported file type: {ext}",
+        "files.extract_error": "Could not extract {path}: {error}",
         # -- UI --
         "ui.thinking": "Thinking...\n",
         "ui.error_label": "Error: {message}",
@@ -242,6 +264,12 @@ _STRINGS: dict[str, dict[str, str]] = {
         "repl.on": "\u5f00",
         "repl.off": "\u5173",
         "repl.max_turns": "\u5df2\u8fbe\u5230\u6700\u5927\u8f6e\u6570\uff0c\u672a\u83b7\u5f97\u6700\u7ec8\u54cd\u5e94",
+        # -- Files --
+        "files.extracting": "\u6b63\u5728\u63d0\u53d6 {count} \u4e2a\u6587\u4ef6\u7684\u5185\u5bb9...",
+        "files.extracted": "\u5df2\u9644\u52a0 {count} \u4e2a\u6587\u4ef6",
+        "files.not_found": "\u6587\u4ef6\u672a\u627e\u5230\uff1a{path}",
+        "files.unsupported": "\u4e0d\u652f\u6301\u7684\u6587\u4ef6\u7c7b\u578b\uff1a{ext}",
+        "files.extract_error": "\u65e0\u6cd5\u63d0\u53d6 {path} \u7684\u5185\u5bb9\uff1a{error}",
         # -- UI --
         "ui.thinking": "\u601d\u8003\u4e2d...\n",
         "ui.error_label": "\u9519\u8bef\uff1a{message}",

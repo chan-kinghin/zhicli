@@ -128,3 +128,45 @@ class TestShellEmptyCommand:
         tool = ShellTool(permission_callback=_allow_all)
         result = tool.execute(command="")
         assert "Error" in result
+
+
+class TestShellWindowsBlocklist:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "del /s /q c:\\",
+            "del /s /q c:\\windows",
+            "rd /s /q c:\\",
+            "rd /s /q c:\\users",
+            "format c:",
+            "format d:",
+        ],
+    )
+    def test_windows_blocked_command(self, command: str) -> None:
+        tool = ShellTool(permission_callback=_allow_all)
+        result = tool.execute(command=command)
+        assert "Error" in result
+        assert "blocked" in result.lower()
+
+
+class TestShellWindowsDestructive:
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "del /f myfile.txt",
+            "rd /s mydir",
+            "reg delete HKLM\\Software\\foo",
+            "icacls myfile /grant Everyone:F",
+        ],
+    )
+    def test_windows_destructive_flagged(self, command: str) -> None:
+        received: list[tuple[str, bool]] = []
+
+        def track(command: str, is_destructive: bool) -> bool:
+            received.append((command, is_destructive))
+            return True
+
+        tool = ShellTool(permission_callback=track)
+        tool.execute(command=command)
+        assert len(received) == 1
+        assert received[0][1] is True

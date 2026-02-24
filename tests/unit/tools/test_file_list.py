@@ -92,3 +92,13 @@ class TestFileListSecurity:
         result = tool.execute(path="file.txt")
         assert "Error" in result
         assert "Not a directory" in result
+
+
+class TestFileListCrossPlatform:
+    def test_path_validation_uses_is_relative_to(self, tmp_path: Path) -> None:
+        """Ensure path check works on all platforms (no hard-coded '/')."""
+        (tmp_path / "hello.txt").write_text("hi", encoding="utf-8")
+        tool = FileListTool(working_dir=tmp_path)
+        result = tool.execute(path=".")
+        assert "hello.txt" in result
+        assert "Error" not in result

@@ -353,3 +353,61 @@ class TestFilteredFileHistory:
         for line in lines:
             assert "api_key" not in line
             assert "password" not in line
+
+
+class TestReplFileAttachment:
+    """Test file path detection and attachment in REPL input."""
+
+    def test_absolute_path_not_treated_as_command(self, tmp_path: Path) -> None:
+        """File paths starting with / should not trigger command dispatch."""
+        f = tmp_path / "test.txt"
+        f.write_text("file content")
+        ctx = _make_context()
+        repl = _make_repl(context=ctx, tmp_path=tmp_path)
+
+        with patch("zhi.repl.agent_run", return_value="response") as mock_run:
+            result = repl.handle_input(str(f))
+
+        # Should go to chat, not command dispatch
+        assert result == "response"
+        mock_run.assert_called_once()
+
+    def test_file_content_included_in_message(self, tmp_path: Path) -> None:
+        """Detected file content should be appended to the user message."""
+        f = tmp_path / "data.txt"
+        f.write_text("important data")
+        ctx = _make_context()
+        repl = _make_repl(context=ctx, tmp_path=tmp_path)
+
+        with patch("zhi.repl.agent_run", return_value="response"):
+            repl.handle_input(f"analyze {f}")
+
+        # Find the user message in conversation
+        user_msgs = [m for m in ctx.conversation if m["role"] == "user"]
+        assert len(user_msgs) == 1
+        user_msg = user_msgs[0]
+        assert "important data" in user_msg["content"]
+        assert "[File 1: data.txt]" in user_msg["content"]
+
+    def test_slash_command_still_works(self, tmp_path: Path) -> None:
+        """Regular slash commands should still work."""
+        repl = _make_repl(tmp_path=tmp_path)
+        result = repl.handle_input("/help")
+        assert "/help" in result
+
+    def test_xlsx_file_uses_extract(self, tmp_path: Path) -> None:
+        """Binary files should use client.file_extract."""
+        f = tmp_path / "prices.xlsx"
+        f.write_bytes(b"PK data")
+        ctx = _make_context()
+        ctx.client.file_extract.return_value = "price data here"
+        repl = _make_repl(context=ctx, tmp_path=tmp_path)
+
+        with patch("zhi.repl.agent_run", return_value="response"):
+            repl.handle_input(f"analyze {f}")
+
+        user_msgs = [m for m in ctx.conversation if m["role"] == "user"]
+        assert len(user_msgs) == 1
+        user_msg = user_msgs[0]
+        assert "price data here" in user_msg["content"]
+        ctx.client.file_extract.assert_called_once()

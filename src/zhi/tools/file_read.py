@@ -49,9 +49,8 @@ class FileReadTool(BaseTool):
         try:
             resolved = (self._working_dir / file_path).resolve()
             working_resolved = self._working_dir.resolve()
-            wd_prefix = str(working_resolved) + "/"
-            if not str(resolved).startswith(wd_prefix) and (
-                resolved != working_resolved
+            if resolved != working_resolved and not resolved.is_relative_to(
+                working_resolved
             ):
                 return (
                     "Error: Path traversal is not allowed. "

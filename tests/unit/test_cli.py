@@ -15,7 +15,7 @@ class TestCliVersion:
 
         main(["--version"])
         captured = capsys.readouterr()
-        assert "zhi 0.1.0" in captured.out
+        assert captured.out.startswith("zhi ")
 
     def test_help_flag(self) -> None:
         from zhi.cli import main

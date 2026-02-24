@@ -34,6 +34,7 @@ Thumbs.db
 
 # Project
 zhi-output/
+src/zhi/_version.py
 *.log
 CLAUDE.md
 docs/plans/

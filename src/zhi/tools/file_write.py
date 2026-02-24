@@ -90,9 +90,8 @@ class FileWriteTool(BaseTool):
         try:
             resolved = target.resolve()
             output_resolved = self._output_dir.resolve()
-            out_prefix = str(output_resolved) + "/"
-            if not str(resolved).startswith(out_prefix) and (
-                resolved != output_resolved
+            if resolved != output_resolved and not resolved.is_relative_to(
+                output_resolved
             ):
                 return (
                     "Error: Resolved path is outside the "

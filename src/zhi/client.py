@@ -17,6 +17,20 @@ from zhi.errors import ApiError
 logger = logging.getLogger(__name__)
 
 _MAX_OCR_FILE_SIZE = 20 * 1024 * 1024  # 20MB
+_SUPPORTED_EXTENSIONS = {
+    ".pdf",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".gif",
+    ".webp",
+    ".xls",
+    ".xlsx",
+    ".docx",
+    ".doc",
+    ".pptx",
+    ".csv",
+}
 
 
 @dataclass
@@ -112,7 +126,7 @@ class Client:
             if tools:
                 kwargs["tools"] = tools
             if thinking:
-                kwargs["extra_body"] = {"thinking": True}
+                kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
             return self._sdk.chat.completions.create(**kwargs)
 
         raw = self._call_with_retry(_call)
@@ -136,7 +150,7 @@ class Client:
             if tools:
                 kwargs["tools"] = tools
             if thinking:
-                kwargs["extra_body"] = {"thinking": True}
+                kwargs["extra_body"] = {"thinking": {"type": "enabled"}}
             return self._sdk.chat.completions.create(**kwargs)
 
         stream = self._call_with_retry(_call)
@@ -156,11 +170,11 @@ class Client:
         except ClientError:
             return True  # Non-auth errors mean the key is valid
 
-    def ocr(self, file_path: Path) -> str:
-        """OCR a file via Zhipu layout parsing API.
+    def file_extract(self, file_path: Path) -> str:
+        """Extract text from a file via Zhipu file-extract API.
 
-        Submits file, polls for async result, returns extracted text.
-        Rejects files over 20MB. Uses streaming upload.
+        Supports: PDF, images, and office documents (.xlsx, .docx, etc.).
+        Rejects files over 20MB.
         """
         if not file_path.exists():
             raise ClientError(f"File not found: {file_path}")
@@ -169,26 +183,20 @@ class Client:
         if file_size > _MAX_OCR_FILE_SIZE:
             size_mb = file_size / (1024 * 1024)
             raise ClientError(
-                f"File too large for OCR ({size_mb:.1f}MB). Maximum: 20MB.",
+                f"File too large ({size_mb:.1f}MB). Maximum: 20MB.",
                 code="FILE_TOO_LARGE",
             )
 
-        supported = {".pdf", ".png", ".jpg", ".jpeg", ".gif", ".webp"}
-        if file_path.suffix.lower() not in supported:
+        if file_path.suffix.lower() not in _SUPPORTED_EXTENSIONS:
             raise ClientError(
-                f"Unsupported file type for OCR: {file_path.suffix}. "
-                f"Supported: {', '.join(sorted(supported))}",
+                f"Unsupported file type: {file_path.suffix}. "
+                f"Supported: {', '.join(sorted(_SUPPORTED_EXTENSIONS))}",
                 code="UNSUPPORTED_FORMAT",
             )
 
         def _call() -> Any:
             with open(file_path, "rb") as f:
-                # Use the SDK's file upload for OCR
-                result = self._sdk.files.create(
-                    file=f,
-                    purpose="file-extract",
-                )
-            # Extract content from the file
+                result = self._sdk.files.create(file=f, purpose="file-extract")
             content = self._sdk.files.content(file_id=result.id)
             return content
 
@@ -200,7 +208,13 @@ class Client:
         except ClientError:
             raise
         except Exception as exc:
-            raise ClientError(f"OCR failed: {exc}", code="OCR_ERROR") from exc
+            raise ClientError(
+                f"File extraction failed: {exc}", code="EXTRACT_ERROR"
+            ) from exc
+
+    def ocr(self, file_path: Path) -> str:
+        """Extract text from images and PDFs. Alias for file_extract()."""
+        return self.file_extract(file_path)
 
     def _call_with_retry(self, fn: Any) -> Any:
         """Execute with exponential backoff retry for transient errors."""

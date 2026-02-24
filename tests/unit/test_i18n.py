@@ -43,6 +43,7 @@ class TestLanguageResolution:
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.delenv("LANG", raising=False)
         monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: None)
         assert resolve_language() == "en"
 
     def test_resolve_auto_detects_zh_from_env(
@@ -84,6 +85,7 @@ class TestTranslation:
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.delenv("LANG", raising=False)
         monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: None)
         assert t("repl.goodbye") == "Goodbye!"
 
     def test_t_returns_chinese_when_zh(self) -> None:
@@ -98,6 +100,7 @@ class TestTranslation:
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.delenv("LANG", raising=False)
         monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: None)
         result = t("repl.model_switched", model="glm-5")
         assert "glm-5" in result
 
@@ -111,6 +114,7 @@ class TestTranslation:
         monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
         monkeypatch.delenv("LANG", raising=False)
         monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: None)
         result = t("nonexistent.key")
         assert result == "nonexistent.key"
 
@@ -148,3 +152,36 @@ class TestPreambleContent:
 
     def test_preamble_forbids_mixing(self) -> None:
         assert "Never mix" in LANGUAGE_PREAMBLE
+
+
+class TestWindowsLocaleDetection:
+    def test_resolve_detects_zh_from_locale_module(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """On Windows, LANG/LC_ALL are unset. Fallback to locale module."""
+        set_language("auto")
+        monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
+        monkeypatch.delenv("LANG", raising=False)
+        monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: "zh_CN")
+        assert resolve_language() == "zh"
+
+    def test_resolve_defaults_en_when_locale_not_zh(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        set_language("auto")
+        monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
+        monkeypatch.delenv("LANG", raising=False)
+        monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: "en_US")
+        assert resolve_language() == "en"
+
+    def test_resolve_defaults_en_when_locale_returns_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        set_language("auto")
+        monkeypatch.delenv("ZHI_LANGUAGE", raising=False)
+        monkeypatch.delenv("LANG", raising=False)
+        monkeypatch.delenv("LC_ALL", raising=False)
+        monkeypatch.setattr("zhi.i18n._get_system_locale", lambda: None)
+        assert resolve_language() == "en"

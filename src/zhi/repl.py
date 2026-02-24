@@ -19,6 +19,7 @@ from prompt_toolkit.history import FileHistory, InMemoryHistory
 
 from zhi.agent import Context, PermissionMode, Role, safe_parse_args
 from zhi.agent import run as agent_run
+from zhi.files import FileAttachment, extract_files
 from zhi.i18n import prepend_preamble, t
 from zhi.models import MODELS, is_valid_model
 from zhi.ui import UI
@@ -198,13 +199,24 @@ class ReplSession:
         return text
 
     def handle_input(self, text: str) -> str | None:
-        """Handle user input: dispatch slash commands or send to agent.
+        """Handle user input: detect files, dispatch commands, or send to agent."""
+        # Preprocess: detect and extract file paths before command dispatch
+        cleaned_text, attachments = extract_files(text, self._context.client)
 
-        Returns the command result message (for testing), or None.
-        """
-        if text.startswith("/"):
-            return self._handle_command(text)
-        return self._handle_chat(text)
+        # Show feedback if files were attached
+        if attachments:
+            successful = [a for a in attachments if a.error is None]
+            errors = [a for a in attachments if a.error is not None]
+            if successful:
+                self._ui.print(t("files.extracted", count=len(successful)))
+            for att in errors:
+                self._ui.print(
+                    t("files.extract_error", path=att.filename, error=att.error)
+                )
+
+        if cleaned_text.startswith("/"):
+            return self._handle_command(cleaned_text)
+        return self._handle_chat(cleaned_text, attachments=attachments)
 
     def _handle_command(self, text: str) -> str | None:
         """Dispatch slash commands."""
@@ -553,12 +565,30 @@ class ReplSession:
         self._ui.print(msg)
         return msg
 
-    def _handle_chat(self, text: str) -> str | None:
+    def _handle_chat(
+        self,
+        text: str,
+        attachments: list[FileAttachment] | None = None,
+    ) -> str | None:
         """Send user text to the agent and display results."""
-        # Add user message to conversation
+        # Build content with file attachments
+        content = text
+        if attachments:
+            file_sections = []
+            for i, att in enumerate(attachments, 1):
+                if att.error:
+                    file_sections.append(
+                        f"--- File {i}: {att.filename} ---\n[Error: {att.error}]"
+                    )
+                else:
+                    file_sections.append(
+                        f"--- File {i}: {att.filename} ---\n{att.content}"
+                    )
+            content = text + "\n\n" + "\n\n".join(file_sections)
+
         user_msg = {
             "role": Role.USER.value,
-            "content": text,
+            "content": content,
         }
         self._context.conversation.append(user_msg)
 
@@ -569,8 +599,6 @@ class ReplSession:
             return None
         except Exception as e:
             logger.exception("Agent error")
-            # Remove the user message to avoid consecutive user messages
-            # in conversation (which would confuse the LLM on next turn)
             conv = self._context.conversation
             if conv and conv[-1] is user_msg:
                 self._context.conversation.pop()

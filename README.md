@@ -142,8 +142,30 @@ zhi
 
 ## 安装与快速入门
 
+### macOS / Linux
+
 ```bash
 pip install zhicli          # 含 Excel/Word 支持
+```
+
+### Windows 安装
+
+**方式一：直接下载（推荐）**
+
+从 [GitHub Releases](https://github.com/chan-kinghin/zhicli/releases) 下载 `zhi-*-windows-x64.exe`，无需安装 Python。
+
+```powershell
+.\zhi.exe --setup
+.\zhi.exe
+```
+
+**方式二：pip 安装**
+
+需要先安装 [Python 3.10+](https://www.python.org/downloads/)（安装时勾选 "Add Python to PATH"）。
+
+```powershell
+pip install zhicli
+zhi --setup
 ```
 
 要求 Python 3.10+。API 密钥从[智谱开放平台](https://open.bigmodel.cn)获取。
@@ -274,8 +296,30 @@ Composite skills (6):
 
 ## Install and Quick Start
 
+### macOS / Linux
+
 ```bash
 pip install zhicli          # includes Excel/Word support
+```
+
+### Windows Install
+
+**Option 1: Download exe (recommended for most users)**
+
+Download `zhi-*-windows-x64.exe` from [GitHub Releases](https://github.com/chan-kinghin/zhicli/releases). No Python required.
+
+```powershell
+.\zhi.exe --setup
+.\zhi.exe
+```
+
+**Option 2: pip install**
+
+Requires [Python 3.10+](https://www.python.org/downloads/) (check "Add Python to PATH" during install).
+
+```powershell
+pip install zhicli
+zhi --setup
 ```
 
 Requires Python 3.10+. Get an API key from [Zhipu Open Platform](https://open.bigmodel.cn).

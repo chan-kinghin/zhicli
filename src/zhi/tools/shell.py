@@ -24,6 +24,11 @@ _BLOCKED_PATTERNS = [
     ":(){ :|:& };:",
     "dd if=/dev/zero of=/dev/",
     "dd if=/dev/random of=/dev/",
+    # Windows catastrophic patterns
+    "del /s /q c:\\",
+    "rd /s /q c:\\",
+    "format c:",
+    "format d:",
 ]
 
 # Patterns that trigger extra destructive warning
@@ -51,6 +56,13 @@ _DESTRUCTIVE_PATTERNS = [
     "sed -i",
     "git reset --hard",
     "git clean",
+    # Windows destructive patterns
+    "del /",
+    "del \\",
+    "rd /",
+    "rd \\",
+    "reg delete",
+    "icacls ",
 ]
 
 

@@ -51,6 +51,40 @@ jobs:
           name: dist
           path: dist/
 
+  build-exe:
+    name: Build Windows exe
+    needs: test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install project and PyInstaller
+        run: pip install -e ".[build]"
+      - name: Build exe
+        run: >
+          pyinstaller
+          --onefile
+          --name zhi
+          --hidden-import zhipuai
+          --hidden-import openpyxl
+          --hidden-import docx
+          --hidden-import zhi.tools.file_read
+          --hidden-import zhi.tools.file_write
+          --hidden-import zhi.tools.file_list
+          --hidden-import zhi.tools.shell
+          --hidden-import zhi.tools.ocr
+          --hidden-import zhi.tools.web_fetch
+          --hidden-import zhi.tools.skill_create
+          --hidden-import zhi.skills.loader
+          src/zhi/cli.py
+      - name: Upload exe artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-exe
+          path: dist/zhi.exe
+
   publish:
     name: Publish to PyPI
     needs: build
@@ -66,3 +100,31 @@ jobs:
           path: dist/
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+
+  release:
+    name: Create GitHub Release
+    needs: [build, build-exe]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download dist artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: Download Windows exe
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-exe
+          path: exe/
+      - name: Rename exe with version
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/v}
+          cp exe/zhi.exe exe/zhi-${VERSION}-windows-x64.exe
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+          files: |
+            exe/zhi-*-windows-x64.exe

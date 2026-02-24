@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "zhicli"
-version = "0.1.1"
+dynamic = ["version"]
 description = "Agentic CLI powered by Zhipu GLM models"
 readme = "README.md"
 license = "MIT"
@@ -33,6 +33,12 @@ dependencies = [
     "sniffio>=1.3",
 ]
 
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/zhi/_version.py"
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/zhi"]
 
@@ -49,6 +55,9 @@ dev = [
     "pytest-mock>=3.0",
     "ruff>=0.4",
     "mypy>=1.8",
+]
+build = [
+    "pyinstaller>=6.0",
 ]
 
 [project.scripts]

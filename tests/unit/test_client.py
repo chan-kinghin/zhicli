@@ -380,6 +380,57 @@ class TestOCR:
             client.ocr(test_file)
         assert exc_info.value.code == "UNSUPPORTED_FORMAT"
 
+    @patch("zhi.client.ZhipuAI")
+    def test_file_extract_xlsx(self, mock_sdk_cls: MagicMock, tmp_path: Path) -> None:
+        mock_sdk = mock_sdk_cls.return_value
+        mock_file_result = SimpleNamespace(id="file-456")
+        mock_content = SimpleNamespace(content="Sheet1 data here")
+        mock_sdk.files.create.return_value = mock_file_result
+        mock_sdk.files.content.return_value = mock_content
+
+        test_file = tmp_path / "prices.xlsx"
+        test_file.write_bytes(b"PK\x03\x04 fake xlsx")
+
+        client = Client(api_key="sk-test")
+        result = client.file_extract(test_file)
+
+        assert result == "Sheet1 data here"
+        mock_sdk.files.create.assert_called_once()
+
+    @patch("zhi.client.ZhipuAI")
+    def test_file_extract_docx(self, mock_sdk_cls: MagicMock, tmp_path: Path) -> None:
+        mock_sdk = mock_sdk_cls.return_value
+        mock_file_result = SimpleNamespace(id="file-789")
+        mock_content = SimpleNamespace(content="Document text")
+        mock_sdk.files.create.return_value = mock_file_result
+        mock_sdk.files.content.return_value = mock_content
+
+        test_file = tmp_path / "report.docx"
+        test_file.write_bytes(b"PK\x03\x04 fake docx")
+
+        client = Client(api_key="sk-test")
+        result = client.file_extract(test_file)
+
+        assert result == "Document text"
+
+    @patch("zhi.client.ZhipuAI")
+    def test_ocr_still_works_as_alias(
+        self, mock_sdk_cls: MagicMock, tmp_path: Path
+    ) -> None:
+        """Ensure ocr() still works for backward compat."""
+        mock_sdk = mock_sdk_cls.return_value
+        mock_file_result = SimpleNamespace(id="file-111")
+        mock_content = SimpleNamespace(content="PDF text")
+        mock_sdk.files.create.return_value = mock_file_result
+        mock_sdk.files.content.return_value = mock_content
+
+        test_file = tmp_path / "doc.pdf"
+        test_file.write_bytes(b"%PDF-1.4 content")
+
+        client = Client(api_key="sk-test")
+        result = client.ocr(test_file)
+        assert result == "PDF text"
+
 
 class TestErrorClassification:
     """Test error classification logic."""

@@ -2,9 +2,15 @@
 
 from __future__ import annotations
 
-from importlib.metadata import version
+from importlib.metadata import PackageNotFoundError, version
 
-__version__ = version("zhicli")
+try:
+    __version__ = version("zhicli")
+except PackageNotFoundError:
+    try:
+        from zhi._version import __version__  # type: ignore[no-redef]
+    except ImportError:
+        __version__ = "0.0.0-dev"
 
 # Public API
 from zhi.client import Client

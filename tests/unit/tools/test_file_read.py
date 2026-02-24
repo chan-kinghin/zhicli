@@ -105,3 +105,13 @@ class TestFileReadSecurity:
         result = tool.execute(path="subdir")
         assert "Error" in result
         assert "Not a file" in result
+
+
+class TestFileReadCrossPlatform:
+    def test_path_validation_cross_platform(self, tmp_path: Path) -> None:
+        """Ensure path check works on all platforms (no hard-coded '/')."""
+        (tmp_path / "data.txt").write_text("content", encoding="utf-8")
+        tool = FileReadTool(working_dir=tmp_path)
+        result = tool.execute(path="data.txt")
+        assert result == "content"
+        assert "Error" not in result
