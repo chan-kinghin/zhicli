@@ -217,9 +217,9 @@ class TestSkillCreateMdReferences:
             references=["/nonexistent/file.md"],
         )
         assert "created" in result.lower()
-        # No references/ dir created (no valid files to copy)
+        # No references/ dir created when all references are skipped
         refs_dir = skills_dir / "missing-refs" / "references"
-        assert refs_dir.is_dir()  # Dir is created but empty
+        assert not refs_dir.exists()
 
     def test_no_references_dir_when_none(self, tmp_path: Path) -> None:
         tool = SkillCreateTool(skills_dir=tmp_path)
@@ -553,3 +553,204 @@ class TestSkillCreateRoundTrip:
         assert "# Smart Skill" in config.system_prompt
         assert "# Knowledge" in config.system_prompt  # Reference injected
         assert "Important facts." in config.system_prompt
+
+
+# ── Output parameter (C1) ─────────────────────────────────────────
+
+
+class TestSkillCreateOutput:
+    def test_skill_md_output_in_frontmatter(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        result = tool.execute(
+            name="out-skill",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            output={"description": "Generated report", "directory": "reports"},
+        )
+        assert "created" in result.lower()
+
+        content = (tmp_path / "out-skill" / "SKILL.md").read_text(encoding="utf-8")
+        assert "output:" in content
+        assert "description: Generated report" in content
+        assert "directory: reports" in content
+
+    def test_skill_md_output_omitted_when_not_provided(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="no-out",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+        )
+        content = (tmp_path / "no-out" / "SKILL.md").read_text(encoding="utf-8")
+        assert "output:" not in content
+
+    def test_skill_md_output_empty_values_omitted(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="empty-out",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            output={"description": "", "directory": ""},
+        )
+        content = (tmp_path / "empty-out" / "SKILL.md").read_text(encoding="utf-8")
+        assert "output:" not in content
+
+    def test_yaml_output_in_config(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        result = tool.execute(
+            name="yaml-out",
+            description="desc",
+            system_prompt="prompt",
+            tools=["file_read"],
+            format="yaml",
+            output={"description": "CSV files", "directory": "csv-output"},
+        )
+        assert "created" in result.lower()
+
+        data = yaml.safe_load((tmp_path / "yaml-out.yaml").read_text(encoding="utf-8"))
+        assert data["output"]["description"] == "CSV files"
+        assert data["output"]["directory"] == "csv-output"
+
+    def test_yaml_output_omitted_when_not_provided(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="yaml-no-out",
+            description="desc",
+            system_prompt="prompt",
+            tools=["file_read"],
+            format="yaml",
+        )
+        data = yaml.safe_load(
+            (tmp_path / "yaml-no-out.yaml").read_text(encoding="utf-8")
+        )
+        assert "output" not in data
+
+    def test_output_roundtrip_with_loader(self, tmp_path: Path) -> None:
+        from zhi.skills.loader_md import load_skill_md
+
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="rt-out",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            output={"description": "Analysis results", "directory": "analysis"},
+        )
+        config = load_skill_md(tmp_path / "rt-out" / "SKILL.md")
+        assert config.output_description == "Analysis results"
+        assert config.output_directory == "analysis"
+
+
+# ── Reference size warning (C2) ───────────────────────────────────
+
+
+class TestSkillCreateReferenceSizeWarning:
+    def test_reference_size_warning(self, tmp_path: Path) -> None:
+        # Create a reference file larger than 50KB
+        big_ref = tmp_path / "big.txt"
+        big_ref.write_text("x" * 60_000, encoding="utf-8")
+
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(skills_dir=skills_dir)
+        result = tool.execute(
+            name="big-refs",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            references=[str(big_ref)],
+        )
+        assert "Warning" in result
+        assert "50KB limit" in result
+        assert "truncated" in result.lower()
+
+    def test_no_warning_under_limit(self, tmp_path: Path) -> None:
+        small_ref = tmp_path / "small.txt"
+        small_ref.write_text("x" * 100, encoding="utf-8")
+
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(skills_dir=skills_dir)
+        result = tool.execute(
+            name="small-refs",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            references=[str(small_ref)],
+        )
+        assert "Warning" not in result
+
+
+# ── Skipped references reported (C3) ──────────────────────────────
+
+
+class TestSkillCreateSkippedReferences:
+    def test_skipped_references_reported(self, tmp_path: Path) -> None:
+        valid_ref = tmp_path / "valid.md"
+        valid_ref.write_text("content", encoding="utf-8")
+
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(skills_dir=skills_dir)
+        result = tool.execute(
+            name="mixed-refs",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            references=[str(valid_ref), "/nonexistent/missing.txt"],
+        )
+        assert "created" in result.lower()
+        assert "valid.md" in result
+        assert "Note:" in result
+        assert "1 reference file(s) skipped" in result
+        assert "missing.txt" in result
+        assert "not found" in result
+
+    def test_all_skipped_references_reported(self, tmp_path: Path) -> None:
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(skills_dir=skills_dir)
+        result = tool.execute(
+            name="all-skipped",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            references=["/nonexistent/a.txt", "/nonexistent/b.txt"],
+        )
+        assert "created" in result.lower()
+        assert "Note:" in result
+        assert "2 reference file(s) skipped" in result
+
+
+# ── No empty references dir (C4) ──────────────────────────────────
+
+
+class TestSkillCreateNoEmptyRefsDir:
+    def test_no_empty_references_dir(self, tmp_path: Path) -> None:
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(skills_dir=skills_dir)
+        tool.execute(
+            name="no-refs-dir",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            references=["/nonexistent/file.md"],
+        )
+        refs_dir = skills_dir / "no-refs-dir" / "references"
+        assert not refs_dir.exists()
+
+    def test_refs_dir_created_when_valid_refs(self, tmp_path: Path) -> None:
+        ref = tmp_path / "real.md"
+        ref.write_text("content", encoding="utf-8")
+
+        skills_dir = tmp_path / "skills"
+        tool = SkillCreateTool(skills_dir=skills_dir)
+        tool.execute(
+            name="with-refs-dir",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            references=[str(ref)],
+        )
+        refs_dir = skills_dir / "with-refs-dir" / "references"
+        assert refs_dir.is_dir()
+        assert (refs_dir / "real.md").exists()

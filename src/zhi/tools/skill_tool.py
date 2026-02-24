@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 from zhi.agent import Context, PermissionMode, Role, ToolLike
 from zhi.agent import run as agent_run
 from zhi.i18n import prepend_preamble
+from zhi.models import get_model
 
 if TYPE_CHECKING:
     from zhi.agent import ClientLike
@@ -20,6 +21,9 @@ logger = logging.getLogger(__name__)
 
 _MAX_DEPTH = 3
 _SKILL_TOOL_PREFIX = "skill_"
+# Default sliding-window size for nested skill contexts.
+# Keeps system prompt + user message + last 40 messages (~10 turn pairs).
+_DEFAULT_SKILL_CONTEXT_MESSAGES = 40
 
 
 class SkillTool:
@@ -278,6 +282,10 @@ class SkillTool:
             )
         conversation.append({"role": Role.USER.value, "content": user_input})
 
+        # Enable thinking for models that support it
+        model_info = get_model(self._skill.model)
+        thinking = model_info.supports_thinking if model_info else False
+
         context = Context(
             config=None,
             client=self._client,
@@ -287,8 +295,9 @@ class SkillTool:
             permission_mode=current_permission_mode,
             conversation=conversation,
             max_turns=self._skill.max_turns,
-            thinking_enabled=False,
+            thinking_enabled=thinking,
             streaming=False,  # Nested skills use buffered mode
+            max_context_messages=_DEFAULT_SKILL_CONTEXT_MESSAGES,
             on_permission=self._on_permission,
             on_ask_user=self._on_ask_user,
         )

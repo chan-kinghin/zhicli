@@ -92,6 +92,9 @@ class Context:
     files_written: int = 0
     # Streaming mode (use chat_stream when available)
     streaming: bool = True
+    # Sliding window: max messages sent to the LLM (0 = unlimited).
+    # Keeps system prompt + initial user message + last N messages.
+    max_context_messages: int = 0
 
 
 def safe_parse_args(raw_args: Any) -> dict[str, Any]:
@@ -113,6 +116,51 @@ class AgentInterruptedError(Exception):
 def _can_stream(context: Context) -> bool:
     """Check if the client supports streaming and streaming is enabled."""
     return context.streaming and hasattr(context.client, "chat_stream")
+
+
+def _prune_for_api(context: Context) -> list[dict[str, Any]]:
+    """Return a pruned conversation for the LLM API call.
+
+    Keeps the system prompt and initial user message at the front, plus the
+    most recent messages.  The cut point is adjusted forward so it always
+    lands on an assistant message — never between a tool_call and its
+    results.  When *max_context_messages* is 0 (the default), the full
+    conversation is returned unchanged.
+    """
+    limit = context.max_context_messages
+    conv = context.conversation
+    if limit <= 0 or len(conv) <= limit:
+        return conv
+
+    # Identify the prefix we always keep (leading system + first user msg).
+    prefix_end = 0
+    for i, msg in enumerate(conv):
+        role = msg.get("role")
+        if role == Role.SYSTEM.value:
+            prefix_end = i + 1
+        elif role == Role.USER.value and i <= prefix_end:
+            prefix_end = i + 1
+            break
+        else:
+            break
+
+    prefix = conv[:prefix_end]
+    rest = conv[prefix_end:]
+
+    keep = limit - len(prefix)
+    if keep <= 0 or keep >= len(rest):
+        return conv
+
+    # Walk forward from the tentative cut point until we hit an assistant
+    # message, which marks the clean start of a turn group.
+    cut = len(rest) - keep
+    while cut < len(rest) and rest[cut].get("role") != Role.ASSISTANT.value:
+        cut += 1
+
+    if cut >= len(rest):
+        return conv  # no clean boundary found — keep everything
+
+    return prefix + rest[cut:]
 
 
 @dataclass
@@ -137,7 +185,7 @@ def _do_turn_streaming(context: Context) -> _TurnResult:
     total_tokens = 0
 
     for chunk in context.client.chat_stream(
-        messages=context.conversation,
+        messages=_prune_for_api(context),
         model=context.model,
         tools=context.tool_schemas or None,
         thinking=context.thinking_enabled,
@@ -200,7 +248,7 @@ def _do_turn_streaming(context: Context) -> _TurnResult:
 def _do_turn_buffered(context: Context) -> _TurnResult:
     """Execute a single turn using buffered (non-streaming) API call."""
     response = context.client.chat(
-        messages=context.conversation,
+        messages=_prune_for_api(context),
         model=context.model,
         tools=context.tool_schemas or None,
         thinking=context.thinking_enabled,

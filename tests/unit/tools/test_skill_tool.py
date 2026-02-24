@@ -250,6 +250,61 @@ class TestSkillToolExecution:
         assert "Additional arguments" not in user_msg["content"]
         assert "'file': ''" not in user_msg["content"]
 
+    def test_thinking_enabled_for_capable_model(self) -> None:
+        """Skill with model='glm-5' gets thinking_enabled=True in Context."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(model="glm-5")
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        assert ctx.thinking_enabled is True
+
+    def test_thinking_disabled_for_incapable_model(self) -> None:
+        """Skill with model='glm-4-flash' gets thinking_enabled=False in Context."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(model="glm-4-flash")
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        assert ctx.thinking_enabled is False
+
+    def test_thinking_disabled_for_unknown_model(self) -> None:
+        """Skill with unknown model gets thinking_enabled=False in Context."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(model="unknown-model")
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        assert ctx.thinking_enabled is False
+
+    def test_max_context_messages_set_for_skills(self) -> None:
+        """Nested skill contexts get a sliding window limit."""
+        from zhi.tools.skill_tool import _DEFAULT_SKILL_CONTEXT_MESSAGES
+
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        tool = SkillTool(
+            skill=_make_skill(), client=client, registry=registry
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        assert ctx.max_context_messages == _DEFAULT_SKILL_CONTEXT_MESSAGES
+
     def test_read_file_oserror_returns_attachment_with_error(self) -> None:
         """Bug 15: OSError on path resolution returns FileAttachment with error."""
         client = _make_client()

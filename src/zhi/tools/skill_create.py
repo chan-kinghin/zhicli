@@ -18,6 +18,8 @@ import yaml
 from zhi.skills.loader import MAX_SKILL_NAME_LENGTH, SKILL_NAME_PATTERN
 from zhi.tools.base import BaseTool
 
+_MAX_REFERENCES_SIZE = 50_000
+
 
 class SkillCreateTool(BaseTool):
     """Create a new skill as a SKILL.md directory or YAML file."""
@@ -92,6 +94,22 @@ class SkillCreateTool(BaseTool):
                 },
                 "description": "Input argument definitions for the skill.",
             },
+            "output": {
+                "type": "object",
+                "description": "Output configuration for the skill",
+                "properties": {
+                    "description": {
+                        "type": "string",
+                        "description": "Description of the skill's output",
+                    },
+                    "directory": {
+                        "type": "string",
+                        "description": (
+                            "Subdirectory name for output files (default: zhi-output)"
+                        ),
+                    },
+                },
+            },
         },
         "required": ["name", "description", "system_prompt", "tools"],
     }
@@ -118,6 +136,7 @@ class SkillCreateTool(BaseTool):
         fmt: str = kwargs.get("format", "skill_md")
         references: list[str] = kwargs.get("references") or []
         input_args: list[dict[str, Any]] = kwargs.get("input_args") or []
+        output: dict[str, Any] | None = kwargs.get("output")
 
         # ── Validate common fields ──────────────────────────────────
         error = self._validate(skill_name, description, system_prompt, tools)
@@ -159,6 +178,7 @@ class SkillCreateTool(BaseTool):
                 max_turns,
                 references,
                 input_args,
+                output,
                 md_dir,
             )
         return self._create_yaml(
@@ -168,6 +188,7 @@ class SkillCreateTool(BaseTool):
             tools,
             model,
             max_turns,
+            output,
             yaml_file,
         )
 
@@ -229,6 +250,7 @@ class SkillCreateTool(BaseTool):
         max_turns: int,
         references: list[str],
         input_args: list[dict[str, Any]],
+        output: dict[str, Any] | None,
         skill_dir: Path,
     ) -> str:
         """Create a SKILL.md directory with frontmatter + body + references."""
@@ -244,6 +266,10 @@ class SkillCreateTool(BaseTool):
             frontmatter["max_turns"] = max_turns
         if input_args:
             frontmatter["input"] = {"args": input_args}
+        if output:
+            output_clean = {k: v for k, v in output.items() if v}
+            if output_clean:
+                frontmatter["output"] = output_clean
 
         frontmatter_str = yaml.dump(
             frontmatter,
@@ -262,26 +288,45 @@ class SkillCreateTool(BaseTool):
 
         # Copy reference files
         copied_refs: list[str] = []
+        skipped_refs: list[str] = []
         if references:
-            refs_dir = skill_dir / "references"
-            try:
-                refs_dir.mkdir(exist_ok=True)
-            except OSError as exc:
-                return f"Error: Could not create references directory: {exc}"
-
             for ref_path_str in references:
                 ref_path = Path(ref_path_str).expanduser().resolve()
                 if not ref_path.is_file():
+                    skipped_refs.append(f"{ref_path.name} (not found)")
                     continue
                 try:
+                    # Create refs dir lazily on first successful copy
+                    refs_dir = skill_dir / "references"
+                    refs_dir.mkdir(exist_ok=True)
                     shutil.copy2(ref_path, refs_dir / ref_path.name)
                     copied_refs.append(ref_path.name)
                 except OSError:
-                    pass  # Skip unreadable files silently
+                    skipped_refs.append(f"{ref_path.name} (read error)")
 
         result = f"Skill '{skill_name}' created at {skill_dir}/SKILL.md"
         if copied_refs:
             result += f" (references: {', '.join(copied_refs)})"
+
+        # Warn if total reference size exceeds limit
+        if copied_refs:
+            refs_dir = skill_dir / "references"
+            total_size = sum(
+                f.stat().st_size for f in refs_dir.iterdir() if f.is_file()
+            )
+            if total_size > _MAX_REFERENCES_SIZE:
+                size_kb = total_size / 1024
+                result += (
+                    f"\nWarning: Total reference size ({size_kb:.1f}KB) exceeds "
+                    f"50KB limit. References will be truncated at load time."
+                )
+
+        if skipped_refs:
+            result += (
+                f"\nNote: {len(skipped_refs)} reference file(s) skipped: "
+                + ", ".join(skipped_refs)
+            )
+
         return result
 
     def _create_yaml(
@@ -292,6 +337,7 @@ class SkillCreateTool(BaseTool):
         tools: list[str],
         model: str,
         max_turns: int,
+        output: dict[str, Any] | None,
         skill_file: Path,
     ) -> str:
         """Create a flat YAML skill file (legacy format)."""
@@ -303,6 +349,10 @@ class SkillCreateTool(BaseTool):
             "tools": tools,
             "max_turns": max_turns,
         }
+        if output:
+            output_clean = {k: v for k, v in output.items() if v}
+            if output_clean:
+                skill_data["output"] = output_clean
 
         try:
             yaml_content = yaml.dump(

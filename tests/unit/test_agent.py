@@ -15,6 +15,7 @@ from zhi.agent import (
     PermissionMode,
     _can_stream,
     _do_turn_streaming,
+    _prune_for_api,
     run,
 )
 from zhi.config import ZhiConfig
@@ -983,3 +984,133 @@ class TestAgentInterruptRollback:
         assert len(ctx.conversation) == 1
         assert ctx.conversation[0]["role"] == "user"
         assert ctx.conversation[0]["content"] == "do work"
+
+
+class TestPruneForApi:
+    """Test conversation sliding window pruning."""
+
+    def _sys(self, content: str = "You are a bot") -> dict[str, Any]:
+        return {"role": "system", "content": content}
+
+    def _user(self, content: str = "Hello") -> dict[str, Any]:
+        return {"role": "user", "content": content}
+
+    def _asst(self, content: str = "", tool_calls: bool = False) -> dict[str, Any]:
+        msg: dict[str, Any] = {"role": "assistant", "content": content}
+        if tool_calls:
+            msg["tool_calls"] = [{"id": "c1", "function": {"name": "t"}}]
+        return msg
+
+    def _tool(self, content: str = "ok") -> dict[str, Any]:
+        return {"role": "tool", "tool_call_id": "c1", "content": content}
+
+    def test_unlimited_returns_full_conversation(self) -> None:
+        """max_context_messages=0 returns the full conversation."""
+        conv = [self._sys(), self._user(), self._asst("hi")]
+        ctx = _make_context([])
+        ctx.conversation = conv
+        ctx.max_context_messages = 0
+
+        assert _prune_for_api(ctx) is conv
+
+    def test_under_limit_returns_full_conversation(self) -> None:
+        """Conversation under the limit is returned unchanged."""
+        conv = [self._sys(), self._user(), self._asst("hi")]
+        ctx = _make_context([])
+        ctx.conversation = conv
+        ctx.max_context_messages = 10
+
+        assert _prune_for_api(ctx) is conv
+
+    def test_prunes_old_turns(self) -> None:
+        """Conversation exceeding limit drops old turn pairs."""
+        conv = [
+            self._sys(),                       # 0 - keep
+            self._user(),                      # 1 - keep
+            self._asst(tool_calls=True),       # 2 - old, drop
+            self._tool("result1"),             # 3 - old, drop
+            self._asst(tool_calls=True),       # 4 - keep (recent)
+            self._tool("result2"),             # 5 - keep
+            self._asst("final"),               # 6 - keep
+        ]
+        ctx = _make_context([])
+        ctx.conversation = conv
+        # limit=5: system + user + 3 recent = 5
+        ctx.max_context_messages = 5
+
+        result = _prune_for_api(ctx)
+
+        assert len(result) == 5
+        assert result[0]["role"] == "system"
+        assert result[1]["role"] == "user"
+        assert result[2]["role"] == "assistant"
+        assert result[2].get("tool_calls")  # the second assistant msg
+        assert result[3]["content"] == "result2"
+        assert result[4]["content"] == "final"
+
+    def test_cut_snaps_to_assistant_boundary(self) -> None:
+        """Cut point advances past orphaned tool results."""
+        conv = [
+            self._sys(),                       # 0
+            self._user(),                      # 1
+            self._asst(tool_calls=True),       # 2
+            self._tool("r1"),                  # 3 - would be cut here naively
+            self._tool("r2"),                  # 4 - but tool, so snap forward
+            self._asst(tool_calls=True),       # 5 - actual cut point
+            self._tool("r3"),                  # 6
+            self._asst("done"),                # 7
+        ]
+        ctx = _make_context([])
+        ctx.conversation = conv
+        # limit=5: prefix=2, want last 3 from rest, but rest[3]=tool so snap
+        ctx.max_context_messages = 5
+
+        result = _prune_for_api(ctx)
+
+        # Should keep: sys, user, asst(tc), tool(r3), asst(done)
+        assert result[0]["role"] == "system"
+        assert result[1]["role"] == "user"
+        assert result[2]["role"] == "assistant"
+        assert result[2].get("tool_calls")
+        assert result[3]["content"] == "r3"
+        assert result[4]["content"] == "done"
+
+    def test_preserves_original_conversation(self) -> None:
+        """Pruning does not mutate the original conversation list."""
+        conv = [
+            self._sys(),
+            self._user(),
+            self._asst(tool_calls=True),
+            self._tool("r1"),
+            self._asst(tool_calls=True),
+            self._tool("r2"),
+            self._asst("end"),
+        ]
+        original_len = len(conv)
+        ctx = _make_context([])
+        ctx.conversation = conv
+        ctx.max_context_messages = 4
+
+        _prune_for_api(ctx)
+
+        assert len(conv) == original_len
+
+    def test_no_system_prompt(self) -> None:
+        """Works when conversation has no system prompt."""
+        conv = [
+            self._user("go"),
+            self._asst(tool_calls=True),
+            self._tool("r1"),
+            self._asst(tool_calls=True),
+            self._tool("r2"),
+            self._asst("end"),
+        ]
+        ctx = _make_context([])
+        ctx.conversation = conv
+        ctx.max_context_messages = 4
+
+        result = _prune_for_api(ctx)
+
+        assert result[0]["role"] == "user"
+        assert result[-1]["content"] == "end"
+        assert len(result) <= 4
