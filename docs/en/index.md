@@ -46,9 +46,9 @@ zhi is an open-source command-line tool that brings Zhipu GLM models to your ter
 
     9 single-purpose + 6 composite workflows for documents, translation, OCR, and more
 
-- :material-file-document: **7 Integrated Tools**
+- :material-file-document: **8 Integrated Tools**
 
-    File read/write, OCR, shell execution, web fetch, and skill creation
+    File read/write, OCR, shell execution, web fetch, skill creation, and interactive prompts
 
 - :material-cog: **YAML Skill System**
 
@@ -69,8 +69,11 @@ zhi is an open-source command-line tool that brings Zhipu GLM models to your ter
 ## Quick Start
 
 ```bash
-# Install
+# macOS / Linux (requires Python 3.10+)
 pip install zhicli
+
+# Windows: download exe from GitHub Releases (no Python needed)
+# Or: pip install zhicli (requires Python 3.10+)
 
 # Configure (30 seconds)
 zhi --setup

@@ -69,8 +69,11 @@ zhi 是一个开源命令行工具，将智谱 GLM 大模型带入你的终端�
 ## 快速开始
 
 ```bash
-# 安装
+# macOS / Linux（需要 Python 3.10+）
 pip install zhicli
+
+# Windows：从 GitHub Releases 下载 exe（无需 Python）
+# 或：pip install zhicli
 
 # 配置（30 秒完成）
 zhi --setup

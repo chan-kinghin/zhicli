@@ -12,11 +12,29 @@
 
 ### 前提条件
 
-- Python 3.10 或更高版本
-- pip 包管理器
 - 智谱开放平台账号（用于获取 API 密钥）
+- **Windows 用户**有两种安装方式：
+    1. 从 [GitHub Releases](https://github.com/chan-kinghin/zhicli/releases) 下载 `zhi.exe`（推荐，无需安装 Python）—— exe 已内置 Python 运行环境
+    2. 通过 pip 安装（需要 Python 3.10+）
+- **macOS 用户**需要 Python 3.10+。macOS 自带的 Python 版本可能较旧，建议通过以下方式安装：
+    - `brew install python@3.11`（推荐，需先安装 [Homebrew](https://brew.sh)）
+    - 或从 [python.org](https://www.python.org/downloads/) 下载安装包
+- **Linux 用户**需要 Python 3.10+。大多数发行版已自带，如未安装：
+    - Ubuntu/Debian: `sudo apt install python3 python3-pip`
+    - Fedora: `sudo dnf install python3 python3-pip`
+    - Arch: `sudo pacman -S python python-pip`
 
 ### 第一步：安装 zhi
+
+**Windows（exe 方式，推荐）：**
+
+从 [GitHub Releases](https://github.com/chan-kinghin/zhicli/releases) 下载 `zhi.exe`，放到你喜欢的目录，然后运行：
+
+```powershell
+.\zhi.exe --setup
+```
+
+**Windows（pip 方式）/ macOS / Linux：**
 
 ```bash
 pip install zhicli

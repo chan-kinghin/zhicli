@@ -2,7 +2,7 @@
 
 ![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue)
 ![License: MIT](https://img.shields.io/badge/license-MIT-green)
-![Tests: 354 passing](https://img.shields.io/badge/tests-354%20passing-brightgreen)
+![Tests: 684 passing](https://img.shields.io/badge/tests-684%20passing-brightgreen)
 
 [English](#english) | [Documentation](https://chan-kinghin.github.io/zhicli/)
 
@@ -30,9 +30,10 @@ zhi
 │  GLM-5       │      GLM-4-flash         │
 │  (智能对话)   │      (成本仅 ~10%)       │
 ├──────────────┴──────────────────────────┤
-│           工具层 (7 个工具)              │
+│           工具层 (8 个工具)              │
 │  file_read · file_write · file_list     │
 │  ocr · shell · web_fetch · skill_create │
+│  ask_user                               │
 ├─────────────────────────────────────────┤
 │           安全层                         │
 │  输出隔离 · 路径保护 · Shell 确认        │
@@ -81,7 +82,7 @@ zhi
 | `contract-review` | 合同分析 + 版本对比 + 校对 | analyze -> compare -> proofread |
 | `report-polish` | 文档润色至可发布状态 | proofread -> analyze -> reformat |
 
-### 7 个工具
+### 8 个工具
 
 | 工具 | 说明 | 风险 |
 |------|------|------|
@@ -92,6 +93,7 @@ zhi
 | `shell` | 执行 Shell 命令（始终需确认） | 是 |
 | `web_fetch` | 获取网页文本内容 | 否 |
 | `skill_create` | 创建新的技能 YAML | 是 |
+| `ask_user` | 执行中向用户提问 | 否 |
 
 风险工具在审批模式下需要用户确认后才能执行。
 
@@ -143,6 +145,22 @@ zhi
 ## 安装与快速入门
 
 ### macOS / Linux
+
+需要 Python 3.10+。Requires Python 3.10+.
+
+**macOS**: 推荐用 Homebrew 安装 / Install via Homebrew:
+
+```bash
+brew install python@3.11
+```
+
+**Linux (Ubuntu/Debian)**:
+
+```bash
+sudo apt install python3 python3-pip
+```
+
+然后安装 zhi / Then install zhi:
 
 ```bash
 pip install zhicli          # 含 Excel/Word 支持
@@ -224,9 +242,10 @@ zhi
 │  GLM-5       │      GLM-4-flash         │
 │  (reasoning) │      (~10% cost)         │
 ├──────────────┴──────────────────────────┤
-│           Tool Layer (7 tools)          │
+│           Tool Layer (8 tools)          │
 │  file_read · file_write · file_list     │
 │  ocr · shell · web_fetch · skill_create │
+│  ask_user                               │
 ├─────────────────────────────────────────┤
 │           Safety Layer                  │
 │  Output isolation · Path guard · Shell  │
@@ -273,7 +292,7 @@ Composite skills (6):
 | `contract-review` | Analyze + compare + proofread contract | analyze -> compare -> proofread |
 | `report-polish` | Polish a document for publication | proofread -> analyze -> reformat |
 
-## Tools
+## Tools (8)
 
 | Tool | Description | Risky |
 |------|-------------|-------|
@@ -284,6 +303,7 @@ Composite skills (6):
 | `shell` | Execute shell commands (always requires confirmation) | Yes |
 | `web_fetch` | Fetch and extract web page text | No |
 | `skill_create` | Create new skill YAML configs | Yes |
+| `ask_user` | Ask the user a question mid-execution | No |
 
 ## Safety
 
@@ -297,6 +317,22 @@ Composite skills (6):
 ## Install and Quick Start
 
 ### macOS / Linux
+
+Requires Python 3.10+.
+
+**macOS**: Install via Homebrew (recommended):
+
+```bash
+brew install python@3.11
+```
+
+**Linux (Ubuntu/Debian)**:
+
+```bash
+sudo apt install python3 python3-pip
+```
+
+Then install zhi:
 
 ```bash
 pip install zhicli          # includes Excel/Word support

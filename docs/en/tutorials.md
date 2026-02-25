@@ -22,11 +22,29 @@ Get from zero to your first conversation in under 5 minutes.
 
 ### Prerequisites
 
-- Python 3.10 or later
-- pip package manager
-- A Zhipu AI account for your API key
+- A Zhipu AI account for your API key ([open.bigmodel.cn](https://open.bigmodel.cn))
+- **Windows users** have two options:
+    1. Download `zhi.exe` from [GitHub Releases](https://github.com/chan-kinghin/zhicli/releases) (recommended -- no Python needed, the exe bundles Python via PyInstaller)
+    2. Install via pip (requires Python 3.10+)
+- **macOS users** need Python 3.10+. macOS may ship with an older version. Install a recent one via:
+    - `brew install python@3.11` (recommended if you have Homebrew)
+    - Or download from [python.org](https://www.python.org/downloads/)
+- **Linux users** need Python 3.10+. Most distributions include it:
+    - Ubuntu/Debian: `sudo apt install python3 python3-pip`
+    - Fedora: `sudo dnf install python3 python3-pip`
+    - Arch: `sudo pacman -S python python-pip`
 
 ### Step 1: Install
+
+**Windows (exe -- no Python required):**
+
+Download `zhi-*-windows-x64.exe` from [GitHub Releases](https://github.com/chan-kinghin/zhicli/releases), rename it to `zhi.exe`, and run:
+
+```powershell
+.\zhi.exe --setup
+```
+
+**Windows (pip), macOS, or Linux:**
 
 ```bash
 pip install zhicli
@@ -36,6 +54,8 @@ Verify the installation:
 
 ```bash
 zhi --version
+# or on Windows with the exe:
+.\zhi.exe --version
 ```
 
 ### Step 2: Configure
@@ -441,6 +461,7 @@ output:
 | `shell` | Execute shell commands | High |
 | `web_fetch` | Fetch web page content | Low |
 | `skill_create` | Create new skills | High |
+| `ask_user` | Ask the user a question mid-execution | Low |
 
 ### Managing Skills
 
