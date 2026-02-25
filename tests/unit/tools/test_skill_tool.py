@@ -312,9 +312,7 @@ class TestSkillToolExecution:
 
         client = _make_client()
         registry = _make_registry_with_fake()
-        tool = SkillTool(
-            skill=_make_skill(), client=client, registry=registry
-        )
+        tool = SkillTool(skill=_make_skill(), client=client, registry=registry)
 
         with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
             tool.execute(input="test")
@@ -541,9 +539,7 @@ class TestSkillToolScopedOutput:
         child_skill = _make_skill(name="child", tools=["file_read"])
 
         registry = _make_registry_with_fake()
-        child_tool = SkillTool(
-            skill=child_skill, client=client, registry=registry
-        )
+        child_tool = SkillTool(skill=child_skill, client=client, registry=registry)
         registry.register(child_tool)
 
         parent_tool = SkillTool(
@@ -637,9 +633,7 @@ class TestRegisterSkillTools:
         client = _make_client()
         base_dir = tmp_path / "zhi-output"
 
-        register_skill_tools(
-            registry, skills, client, base_output_dir=base_dir
-        )
+        register_skill_tools(registry, skills, client, base_output_dir=base_dir)
 
         tool = registry.get("skill_summarize")
         assert isinstance(tool, SkillTool)

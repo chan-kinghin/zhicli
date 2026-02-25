@@ -480,7 +480,9 @@ class TestFileExtractFallback:
         assert result == "raw string result"
         mock_logger.warning.assert_called_once()
         warning_msg = mock_logger.warning.call_args.args[0]
-        assert "no 'content' attribute" in warning_msg.lower() or "content" in warning_msg
+        assert (
+            "no 'content' attribute" in warning_msg.lower() or "content" in warning_msg
+        )
 
     @patch("zhi.client.ZhipuAI")
     def test_file_extract_with_content_attr_no_warning(

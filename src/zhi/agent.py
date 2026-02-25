@@ -48,11 +48,21 @@ class ToolLike(Protocol):
 
     def execute(self, **kwargs: Any) -> str: ...
 
+    def to_function_schema(self) -> dict[str, Any]: ...
+
 
 class ClientLike(Protocol):
     """Minimal client interface for the agent loop."""
 
     def chat(
+        self,
+        messages: list[dict[str, Any]],
+        model: str,
+        tools: list[dict[str, Any]] | None,
+        thinking: bool,
+    ) -> Any: ...
+
+    def chat_stream(
         self,
         messages: list[dict[str, Any]],
         model: str,
@@ -103,7 +113,8 @@ def safe_parse_args(raw_args: Any) -> dict[str, Any]:
         return raw_args
     if isinstance(raw_args, str):
         try:
-            return json.loads(raw_args)
+            parsed: dict[str, Any] = json.loads(raw_args)
+            return parsed
         except (json.JSONDecodeError, ValueError):
             return {"_raw": raw_args}
     return {}

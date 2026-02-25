@@ -8,7 +8,7 @@ try:
     __version__ = version("zhicli")
 except PackageNotFoundError:
     try:
-        from zhi._version import __version__  # type: ignore[no-redef]
+        from zhi._version import __version__  # type: ignore[no-redef,unused-ignore]
     except ImportError:
         __version__ = "0.0.0-dev"
 

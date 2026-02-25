@@ -217,7 +217,8 @@ def _get_exe_download_url() -> str | None:
         for asset in data.get("assets", []):
             name = asset.get("name", "")
             if name.endswith(".exe"):
-                return asset.get("browser_download_url")
+                url: str | None = asset.get("browser_download_url")
+                return url
         return None
     except (httpx.HTTPError, KeyError, ValueError):
         return None

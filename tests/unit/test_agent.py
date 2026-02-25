@@ -1025,13 +1025,13 @@ class TestPruneForApi:
     def test_prunes_old_turns(self) -> None:
         """Conversation exceeding limit drops old turn pairs."""
         conv = [
-            self._sys(),                       # 0 - keep
-            self._user(),                      # 1 - keep
-            self._asst(tool_calls=True),       # 2 - old, drop
-            self._tool("result1"),             # 3 - old, drop
-            self._asst(tool_calls=True),       # 4 - keep (recent)
-            self._tool("result2"),             # 5 - keep
-            self._asst("final"),               # 6 - keep
+            self._sys(),  # 0 - keep
+            self._user(),  # 1 - keep
+            self._asst(tool_calls=True),  # 2 - old, drop
+            self._tool("result1"),  # 3 - old, drop
+            self._asst(tool_calls=True),  # 4 - keep (recent)
+            self._tool("result2"),  # 5 - keep
+            self._asst("final"),  # 6 - keep
         ]
         ctx = _make_context([])
         ctx.conversation = conv
@@ -1051,14 +1051,14 @@ class TestPruneForApi:
     def test_cut_snaps_to_assistant_boundary(self) -> None:
         """Cut point advances past orphaned tool results."""
         conv = [
-            self._sys(),                       # 0
-            self._user(),                      # 1
-            self._asst(tool_calls=True),       # 2
-            self._tool("r1"),                  # 3 - would be cut here naively
-            self._tool("r2"),                  # 4 - but tool, so snap forward
-            self._asst(tool_calls=True),       # 5 - actual cut point
-            self._tool("r3"),                  # 6
-            self._asst("done"),                # 7
+            self._sys(),  # 0
+            self._user(),  # 1
+            self._asst(tool_calls=True),  # 2
+            self._tool("r1"),  # 3 - would be cut here naively
+            self._tool("r2"),  # 4 - but tool, so snap forward
+            self._asst(tool_calls=True),  # 5 - actual cut point
+            self._tool("r3"),  # 6
+            self._asst("done"),  # 7
         ]
         ctx = _make_context([])
         ctx.conversation = conv

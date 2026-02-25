@@ -183,7 +183,7 @@ class ReplSession:
         return "zhi> "
 
     @staticmethod
-    def _prompt_continuation(width: int, line_number: int, is_soft_wrap: bool) -> str:
+    def _prompt_continuation(width: int, line_number: int, is_soft_wrap: int) -> str:
         """Return continuation prompt for multi-line input."""
         return "...  "
 
@@ -284,7 +284,8 @@ class ReplSession:
             self._ui.print(msg)
             return msg
 
-        return handler(args)
+        result: str | None = handler(args)
+        return result
 
     def _handle_help(self, _args: str = "") -> str:
         """Show available commands."""

@@ -152,10 +152,11 @@ def _build_context(
 
     # Build permission callback (shared with skills via closure)
     def on_permission(tool: Any, call: dict[str, Any]) -> bool:
-        return ui.ask_permission(
+        result: bool = ui.ask_permission(
             tool.name,
             safe_parse_args(call["function"]["arguments"]),
         )
+        return result
 
     # We'll create a mutable container so SkillTools can read the live
     # permission_mode even after /auto changes it.
@@ -165,7 +166,8 @@ def _build_context(
 
     def permission_mode_getter() -> PermissionMode:
         if context_holder:
-            return context_holder[0].permission_mode
+            mode: PermissionMode = context_holder[0].permission_mode
+            return mode
         return PermissionMode.APPROVE
 
     # Register discovered skills as callable tools

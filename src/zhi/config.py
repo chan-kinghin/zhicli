@@ -10,6 +10,7 @@ import logging
 import os
 from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 import platformdirs
 import yaml
@@ -100,12 +101,12 @@ def load_config(config_dir: Path | None = None) -> ZhiConfig:
 
     # Build config, ignoring unknown keys
     known_fields = {f.name for f in ZhiConfig.__dataclass_fields__.values()}
-    filtered = {k: v for k, v in data.items() if k in known_fields}
+    filtered: dict[str, Any] = {k: v for k, v in data.items() if k in known_fields}
 
     # Coerce max_turns to int to avoid TypeError in validate()
     if "max_turns" in filtered:
         try:
-            filtered["max_turns"] = int(filtered["max_turns"])
+            filtered["max_turns"] = int(str(filtered["max_turns"]))
         except (ValueError, TypeError):
             logger.warning(
                 "Invalid max_turns value '%s', using default", filtered["max_turns"]
