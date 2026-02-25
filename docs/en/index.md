@@ -27,8 +27,9 @@ hide:
 
 zhi is an open-source command-line tool that brings Zhipu GLM models to your terminal. It combines intelligent chat with a powerful skill system for document processing, OCR, and automation — all with built-in safety guardrails.
 
-[Get Started :material-arrow-right:](tutorials.md){ .md-button .md-button--primary }
-[View on GitHub :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
+[Install :material-download:](install.md){ .md-button .md-button--primary }
+[Get Started :material-arrow-right:](tutorials.md){ .md-button }
+[GitHub :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
 
 </div>
 
@@ -69,15 +70,9 @@ zhi is an open-source command-line tool that brings Zhipu GLM models to your ter
 ## Quick Start
 
 ```bash
-# macOS / Linux (requires Python 3.10+)
-pip install zhicli
-
-# Windows: download exe from GitHub Releases (no Python needed)
-# Or: pip install zhicli (requires Python 3.10+)
-
-# Configure (30 seconds)
-zhi --setup
-
-# Start chatting
-zhi
+pip install zhicli    # macOS / Linux (requires Python 3.10+)
+zhi --setup           # Configure API key (30 seconds)
+zhi                   # Start chatting
 ```
+
+On Windows? [Download standalone exe :material-download:](install.md){ .md-button }  No Python required.

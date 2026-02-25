@@ -211,7 +211,25 @@ a,
 }
 
 /* --------------------------------------------------------------------------
-   12. Responsive Adjustments
+   12. Install Page
+   -------------------------------------------------------------------------- */
+.install-hero {
+  text-align: center;
+  font-size: 1.15rem;
+  color: var(--md-default-fg-color--light);
+  margin-bottom: 1rem;
+}
+
+.install-version {
+  display: inline-block;
+  margin-left: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--md-default-fg-color--lighter);
+  vertical-align: middle;
+}
+
+/* --------------------------------------------------------------------------
+   13. Responsive Adjustments
    -------------------------------------------------------------------------- */
 @media (max-width: 768px) {
   .hero-section {

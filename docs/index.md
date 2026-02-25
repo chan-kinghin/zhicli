@@ -27,8 +27,9 @@ hide:
 
 zhi 是一个开源命令行工具，将智谱 GLM 大模型带入你的终端。它将智能对话与强大的技能系统相结合，支持文档处理、OCR 识别和自动化工作流 —— 并内置安全防护机制。
 
-[开始使用 :material-arrow-right:](zh/tutorials.md){ .md-button .md-button--primary }
-[在 GitHub 上查看 :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
+[安装 :material-download:](zh/install.md){ .md-button .md-button--primary }
+[开始使用 :material-arrow-right:](zh/tutorials.md){ .md-button }
+[GitHub :material-github:](https://github.com/chan-kinghin/zhicli){ .md-button }
 
 </div>
 
@@ -69,15 +70,9 @@ zhi 是一个开源命令行工具，将智谱 GLM 大模型带入你的终端�
 ## 快速开始
 
 ```bash
-# macOS / Linux（需要 Python 3.10+）
-pip install zhicli
-
-# Windows：从 GitHub Releases 下载 exe（无需 Python）
-# 或：pip install zhicli
-
-# 配置（30 秒完成）
-zhi --setup
-
-# 开始对话
-zhi
+pip install zhicli    # macOS / Linux（需要 Python 3.10+）
+zhi --setup           # 配置 API Key（30 秒）
+zhi                   # 开始对话
 ```
+
+Windows 用户？[下载独立 exe :material-download:](zh/install.md){ .md-button }  无需安装 Python。

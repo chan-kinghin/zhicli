@@ -38,6 +38,7 @@ theme:
 
 nav:
   - 首页: index.md
+  - 安装: zh/install.md
   - 教程: zh/tutorials.md
   - 使用场景: zh/use-cases.md
   - 对比: zh/comparison.md
@@ -49,6 +50,7 @@ nav:
     - 配置: zh/reference/config.md
   - English:
     - Home: en/index.md
+    - Install: en/install.md
     - Tutorials: en/tutorials.md
     - Use Cases: en/use-cases.md
     - Comparison: en/comparison.md
