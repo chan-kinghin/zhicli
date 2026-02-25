@@ -106,10 +106,10 @@ class TestDiscoverSkills:
     def test_discover_real_builtins(self) -> None:
         """Test that the shipped builtin skills load correctly."""
         skills = discover_skills(user_dir=None)
-        assert "summarize" in skills
-        assert "translate" in skills
-        assert skills["summarize"].model == "glm-4-flash"
-        assert skills["translate"].model == "glm-4-flash"
+        assert "pdf" in skills
+        assert "docx" in skills
+        assert skills["pdf"].model == "glm-4-flash"
+        assert skills["docx"].source == "builtin"
 
     def test_scan_directory_oserror_on_glob(self, tmp_path: Path) -> None:
         """Bug 10: OSError on glob() should return empty dict, not crash."""
@@ -189,13 +189,13 @@ class TestDiscoverSkillMd:
         assert "good-md" in skills
         assert len(skills) == 1
 
-    def test_all_builtins_include_ask_user(self) -> None:
-        """Every shipped builtin skill should have ask_user in its tools list."""
+    def test_all_builtins_load_successfully(self) -> None:
+        """Every shipped builtin skill should load without error."""
         skills = discover_skills(user_dir=None)
+        assert len(skills) > 0
         for name, config in skills.items():
-            assert "ask_user" in config.tools, (
-                f"Builtin skill '{name}' is missing 'ask_user' in its tools list"
-            )
+            assert config.name == name
+            assert config.description
 
     def test_user_skill_md_overrides_builtin_yaml(self, tmp_path: Path) -> None:
         builtin = tmp_path / "builtin"

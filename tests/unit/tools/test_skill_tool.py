@@ -988,3 +988,207 @@ class TestSkillToolTraceCallbacks:
         assert tool._on_tool_total is on_total
         assert tool._on_trace_depth is on_depth
         assert tool._on_skill_summary is on_summary
+
+
+# ── Default Empty Tools ──────────────────────────────────────────────
+
+
+def _make_multi_tool_registry() -> ToolRegistry:
+    """Registry containing multiple base tools for default-tools testing."""
+
+    class FakeFileRead(BaseTool):
+        name: ClassVar[str] = "file_read"
+        description: ClassVar[str] = "Read a file."
+        parameters: ClassVar[dict[str, Any]] = {
+            "type": "object",
+            "properties": {},
+        }
+
+        def execute(self, **kwargs: Any) -> str:
+            return "file contents"
+
+    class FakeFileWrite(BaseTool):
+        name: ClassVar[str] = "file_write"
+        description: ClassVar[str] = "Write a file."
+        parameters: ClassVar[dict[str, Any]] = {
+            "type": "object",
+            "properties": {},
+        }
+
+        def execute(self, **kwargs: Any) -> str:
+            return "written"
+
+    class FakeWebFetch(BaseTool):
+        name: ClassVar[str] = "web_fetch"
+        description: ClassVar[str] = "Fetch a URL."
+        parameters: ClassVar[dict[str, Any]] = {
+            "type": "object",
+            "properties": {},
+        }
+
+        def execute(self, **kwargs: Any) -> str:
+            return "fetched"
+
+    reg = ToolRegistry()
+    reg.register(FakeFileRead())
+    reg.register(FakeFileWrite())
+    reg.register(FakeWebFetch())
+    return reg
+
+
+def _make_empty_tools_skill(
+    name: str = "pdf",
+    system_prompt: str = "You are a helper.",
+) -> SkillConfig:
+    """Create a skill with tools=[] (empty), like Anthropic CC skills."""
+    return SkillConfig(
+        name=name,
+        description="A skill with no explicit tools",
+        system_prompt=system_prompt,
+        tools=[],
+        model="glm-4-flash",
+        max_turns=5,
+        input_args=[],
+    )
+
+
+class TestDefaultEmptyTools:
+    def test_empty_tools_defaults_to_base_tools(self) -> None:
+        """Skill with tools=[] gets all base tools from registry."""
+        client = _make_client()
+        registry = _make_multi_tool_registry()
+        skill = _make_empty_tools_skill()
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        # All base tools should be present
+        assert "file_read" in ctx.tools
+        assert "file_write" in ctx.tools
+        assert "web_fetch" in ctx.tools
+
+    def test_defaulted_tools_excludes_skill_prefixed(self) -> None:
+        """skill_* and skill_create are excluded from defaults."""
+        client = _make_client()
+        registry = _make_multi_tool_registry()
+
+        # Add a skill tool and skill_create to the registry
+        child_skill = _make_skill(name="child", tools=["file_read"])
+        child_tool = SkillTool(skill=child_skill, client=client, registry=registry)
+        registry.register(child_tool)
+
+        # Also add a fake skill_create
+        class FakeSkillCreate(BaseTool):
+            name: ClassVar[str] = "skill_create"
+            description: ClassVar[str] = "Create a skill."
+            parameters: ClassVar[dict[str, Any]] = {
+                "type": "object",
+                "properties": {},
+            }
+
+            def execute(self, **kwargs: Any) -> str:
+                return "created"
+
+        registry.register(FakeSkillCreate())
+
+        skill = _make_empty_tools_skill()
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        # Base tools should be present
+        assert "file_read" in ctx.tools
+        # Skill-prefixed and skill_create should NOT be present
+        assert "skill_child" not in ctx.tools
+        assert "skill_create" not in ctx.tools
+
+    def test_defaulted_tools_injects_preamble(self) -> None:
+        """System prompt has 'Available Tools' section when tools are defaulted."""
+        client = _make_client()
+        registry = _make_multi_tool_registry()
+        skill = _make_empty_tools_skill()
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        system_msg = next(
+            m for m in ctx.conversation if m["role"] == "system"
+        )
+        assert "Available Tools" in system_msg["content"]
+        assert "file_read" in system_msg["content"]
+
+    def test_explicit_tools_no_preamble(self) -> None:
+        """Skill with explicit tools=["file_read"] does NOT get preamble."""
+        client = _make_client()
+        registry = _make_multi_tool_registry()
+        skill = _make_skill(name="summarize", tools=["file_read"])
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        system_msg = next(
+            m for m in ctx.conversation if m["role"] == "system"
+        )
+        assert "Available Tools" not in system_msg["content"]
+
+    def test_defaulted_ask_user_uses_callback(self) -> None:
+        """ask_user in defaults uses on_ask_user callback."""
+        from zhi.tools.ask_user import AskUserTool
+
+        client = _make_client()
+        registry = _make_multi_tool_registry()
+
+        # Add ask_user to registry so it gets defaulted
+        registry.register(AskUserTool(callback=None))
+
+        callback = MagicMock(return_value="user answer")
+        skill = _make_empty_tools_skill()
+        tool = SkillTool(
+            skill=skill,
+            client=client,
+            registry=registry,
+            on_ask_user=callback,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        ask_tool = ctx.tools.get("ask_user")
+        assert ask_tool is not None
+        assert isinstance(ask_tool, AskUserTool)
+        # The tool should have our callback, not the registry's None
+        assert ask_tool._callback is callback
+
+    def test_defaulted_file_write_uses_scoped_dir(self, tmp_path: Path) -> None:
+        """file_write in defaults uses skill-scoped output dir."""
+        from zhi.tools.file_write import FileWriteTool
+
+        client = _make_client()
+        registry = _make_multi_tool_registry()
+        base_dir = tmp_path / "zhi-output"
+
+        skill = _make_empty_tools_skill()
+        tool = SkillTool(
+            skill=skill,
+            client=client,
+            registry=registry,
+            base_output_dir=base_dir,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        fw_tool = ctx.tools.get("file_write")
+        assert fw_tool is not None
+        assert isinstance(fw_tool, FileWriteTool)
+        assert fw_tool._output_dir == base_dir / "pdf"

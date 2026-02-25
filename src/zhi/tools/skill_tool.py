@@ -25,6 +25,14 @@ _SKILL_TOOL_PREFIX = "skill_"
 # Keeps system prompt + user message + last 40 messages (~10 turn pairs).
 _DEFAULT_SKILL_CONTEXT_MESSAGES = 40
 
+# Preamble appended when a skill has no explicit tools and we default to all
+# base tools.  Lists the available tools so the LLM knows what it can use.
+_TOOL_PREAMBLE = (
+    "\n\n---\n\n## Available Tools\n\n"
+    "You have access to these tools:\n{tool_list}\n\n"
+    "Use these tools to complete the task."
+)
+
 
 class SkillTool:
     """Wraps a SkillConfig into a callable tool for the agent loop.
@@ -311,14 +319,59 @@ class SkillTool:
                     tool_name,
                 )
 
+        # Default empty tools to all base tools from the registry.
+        # This makes Anthropic CC skills (which have tools=[]) work in zhi.
+        tools_were_defaulted = False
+        if not inner_tools:
+            for t_name in self._registry.list_names():
+                t_obj = self._registry.get(t_name)
+                if t_obj is None:
+                    continue
+                # Exclude skill_ prefixed tools and skill_create
+                if t_name.startswith(_SKILL_TOOL_PREFIX) or t_name == "skill_create":
+                    continue
+                # Handle ask_user specially — create with current callback
+                if t_name == "ask_user" and self._on_ask_user is not None:
+                    from zhi.tools.ask_user import AskUserTool
+
+                    inner_tools["ask_user"] = AskUserTool(callback=self._on_ask_user)
+                    inner_schemas.append(inner_tools["ask_user"].to_function_schema())
+                # Handle file_write — use skill-scoped output directory
+                elif t_name == "file_write" and self._base_output_dir is not None:
+                    from zhi.tools.file_write import FileWriteTool
+
+                    scoped_dir = self._base_output_dir / skill_name
+                    scoped_fw = FileWriteTool(output_dir=scoped_dir)
+                    inner_tools["file_write"] = scoped_fw
+                    inner_schemas.append(scoped_fw.to_function_schema())
+                else:
+                    inner_tools[t_name] = t_obj
+                    inner_schemas.append(t_obj.to_function_schema())
+            tools_were_defaulted = True
+
+        # Build the effective system prompt, injecting tool preamble if defaulted
+        effective_prompt = self._skill.system_prompt
+        if tools_were_defaulted and inner_tools:
+            tool_list = "\n".join(
+                f"- **{n}**: {t.description}"
+                for n, t in inner_tools.items()
+                if hasattr(t, "description")
+            )
+            effective_prompt += _TOOL_PREAMBLE.format(tool_list=tool_list)
+
+        # Determine whether ask_user is available (explicit or defaulted)
+        has_ask_user = "ask_user" in (
+            self._skill.tools if self._skill.tools else list(inner_tools.keys())
+        )
+
         conversation: list[dict[str, Any]] = []
-        if self._skill.system_prompt:
+        if effective_prompt:
             conversation.append(
                 {
                     "role": Role.SYSTEM.value,
                     "content": prepend_preamble(
-                        self._skill.system_prompt,
-                        has_ask_user="ask_user" in self._skill.tools,
+                        effective_prompt,
+                        has_ask_user=has_ask_user,
                     ),
                 }
             )

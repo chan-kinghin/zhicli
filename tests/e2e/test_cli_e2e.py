@@ -204,7 +204,7 @@ class TestCliSkillRunE2E:
                 _make_stream_chunks("Summary done")
             )
 
-            main(["run", "summarize"])
+            main(["run", "pdf"])
 
         # Verify agent was invoked — the SDK got called at least once
         assert mock_sdk.chat.completions.create.called
@@ -243,7 +243,7 @@ class TestCliSkillRunE2E:
             patch("zhi.config.load_config", return_value=mock_config),
             pytest.raises(SystemExit),
         ):
-            main(["run", "summarize"])
+            main(["run", "pdf"])
 
         out = capsys.readouterr().out
         assert "No API key" in out
@@ -283,22 +283,21 @@ class TestChatSystemPromptContent:
 class TestBuiltinSkillsE2E:
     """Integration tests for builtin skill discovery."""
 
-    def test_all_builtins_have_ask_user(self) -> None:
-        """Every shipped builtin skill must include ask_user in its tools list."""
+    def test_all_builtins_load_successfully(self) -> None:
+        """Every shipped builtin skill should load without error."""
         from zhi.skills import discover_skills
 
         skills = discover_skills(user_dir=None)
-        missing = [
-            name for name, config in skills.items() if "ask_user" not in config.tools
-        ]
-        assert missing == [], f"Skills missing ask_user: {missing}"
+        for name, config in skills.items():
+            assert config.name == name
+            assert config.description
 
-    def test_builtin_count_at_least_15(self) -> None:
-        """We ship at least 15 builtin skills."""
+    def test_builtin_count_at_least_10(self) -> None:
+        """We ship at least 10 builtin skills."""
         from zhi.skills import discover_skills
 
         skills = discover_skills(user_dir=None)
-        assert len(skills) >= 15, f"Expected >= 15 builtin skills, got {len(skills)}"
+        assert len(skills) >= 10, f"Expected >= 10 builtin skills, got {len(skills)}"
 
     def test_user_skills_dir_is_configurable(
         self, tmp_path: pytest.TempPathFactory

@@ -61,7 +61,7 @@ class TestReferences:
         (refs / "prices.txt").write_text("item1: $10\nitem2: $20")
         config = load_skill_md(skill_dir / "SKILL.md")
         assert "Main prompt." in config.system_prompt
-        assert "### prices.txt" in config.system_prompt
+        assert "### references/prices.txt" in config.system_prompt
         assert "item1: $10" in config.system_prompt
 
     def test_references_capped_at_max_size(self, tmp_path: Path) -> None:
@@ -99,8 +99,8 @@ class TestReferences:
         (refs / "b_second.txt").write_text("second")
         (refs / "a_first.txt").write_text("first")
         config = load_skill_md(skill_dir / "SKILL.md")
-        a_pos = config.system_prompt.index("### a_first.txt")
-        b_pos = config.system_prompt.index("### b_second.txt")
+        a_pos = config.system_prompt.index("### references/a_first.txt")
+        b_pos = config.system_prompt.index("### references/b_second.txt")
         assert a_pos < b_pos
 
     def test_binary_reference_file_skipped(self, tmp_path: Path) -> None:
@@ -150,7 +150,6 @@ class TestFrontmatterErrors:
             load_skill_md(skill_dir / "SKILL.md")
         msg = str(exc_info.value)
         assert "description" in msg
-        assert "tools" in msg
 
 
 class TestNameValidation:

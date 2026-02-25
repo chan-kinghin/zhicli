@@ -15,14 +15,15 @@ from zhi.skills.loader import SkillConfig, validate_skill_name
 
 logger = logging.getLogger(__name__)
 
-# Max total size of reference files to inject (50 KB).
-_MAX_REFERENCES_SIZE = 50_000
+# Max total size of reference files to inject (100 KB).
+_MAX_REFERENCES_SIZE = 100_000
 
 # Frontmatter pattern: --- at start, YAML content, --- delimiter.
 _FRONTMATTER_RE = re.compile(r"\A---\s*\n(.*?)\n---\s*\n?(.*)", re.DOTALL)
 
 # Required frontmatter fields (note: no system_prompt — the body is the prompt).
-_REQUIRED_FIELDS = {"name", "description", "tools"}
+# tools is optional — skills without tools use disable_model_invocation mode.
+_REQUIRED_FIELDS = {"name", "description"}
 
 
 def load_skill_md(path: Path, *, source: str = "") -> SkillConfig:
@@ -108,8 +109,8 @@ def load_skill_md(path: Path, *, source: str = "") -> SkillConfig:
             code="SKILL_INVALID_NAME",
         )
 
-    # Validate tools is a list
-    tools = data["tools"]
+    # Validate tools (optional — defaults to empty list)
+    tools = data.get("tools", [])
     if not isinstance(tools, list):
         raise SkillError(f"'tools' must be a list in {path}", code="SKILL_INVALID_YAML")
 
@@ -119,13 +120,13 @@ def load_skill_md(path: Path, *, source: str = "") -> SkillConfig:
             f"'description' must be a string in {path}", code="SKILL_INVALID_YAML"
         )
 
-    # Build system_prompt from body + references
+    # Build system_prompt from body + references.
+    # Scan for reference files: sibling .md files and all subdirectories
+    # (references/, examples/, themes/, etc.)
     system_prompt = body
-    refs_dir = path.parent / "references"
-    if refs_dir.is_dir():
-        ref_content = _load_references(refs_dir)
-        if ref_content:
-            system_prompt += "\n\n---\n\n## Reference Files\n\n" + ref_content
+    ref_content = _load_all_references(path.parent)
+    if ref_content:
+        system_prompt += "\n\n---\n\n## Reference Files\n\n" + ref_content
 
     # Extract optional fields
     input_section = data.get("input", {})
@@ -163,27 +164,30 @@ def load_skill_md(path: Path, *, source: str = "") -> SkillConfig:
     )
 
 
-def _load_references(refs_dir: Path) -> str:
-    """Load all reference files from a directory, capped at _MAX_REFERENCES_SIZE."""
+def _load_all_references(skill_dir: Path) -> str:
+    """Load reference files from the skill directory tree.
+
+    Collects:
+    - Sibling ``.md`` files next to SKILL.md (excluding SKILL.md itself)
+    - All text files in subdirectories (references/, examples/, themes/, etc.)
+
+    Total content is capped at ``_MAX_REFERENCES_SIZE`` bytes.
+    """
     sections: list[str] = []
     total_size = 0
+    hit_cap = False
 
-    try:
-        ref_files = sorted(refs_dir.iterdir())
-    except OSError:
-        return ""
-
-    for ref_path in ref_files:
-        if not ref_path.is_file():
-            continue
-        # Skip hidden files
+    def _add_file(ref_path: Path, label: str) -> None:
+        nonlocal total_size, hit_cap
+        if hit_cap:
+            return
         if ref_path.name.startswith("."):
-            continue
+            return
         try:
             content = ref_path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             logger.warning("Cannot read reference file: %s", ref_path)
-            continue
+            return
 
         if total_size + len(content) > _MAX_REFERENCES_SIZE:
             warnings.warn(
@@ -191,9 +195,35 @@ def _load_references(refs_dir: Path) -> str:
                 f"skipping remaining files after {ref_path.name}",
                 stacklevel=2,
             )
-            break
+            hit_cap = True
+            return
 
-        sections.append(f"### {ref_path.name}\n\n{content}")
+        sections.append(f"### {label}\n\n{content}")
         total_size += len(content)
+
+    try:
+        # 1. Sibling .md files (exclude SKILL.md)
+        for sibling in sorted(skill_dir.iterdir()):
+            if not sibling.is_file():
+                continue
+            if sibling.name == "SKILL.md":
+                continue
+            if sibling.suffix in (".md", ".txt"):
+                _add_file(sibling, sibling.name)
+
+        # 2. All subdirectories (references/, examples/, themes/, etc.)
+        for subdir in sorted(skill_dir.iterdir()):
+            if not subdir.is_dir():
+                continue
+            if subdir.name.startswith("."):
+                continue
+            for ref_path in sorted(subdir.iterdir()):
+                if not ref_path.is_file():
+                    continue
+                if ref_path.suffix in (".md", ".txt"):
+                    label = f"{subdir.name}/{ref_path.name}"
+                    _add_file(ref_path, label)
+    except OSError:
+        pass
 
     return "\n\n".join(sections)

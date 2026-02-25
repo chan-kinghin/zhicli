@@ -452,6 +452,22 @@ class ReplSession:
                     f"Skill '{skill_name}' references unknown tool '{tool_name}'"
                 )
 
+        # Default empty tools to all base tools from the main context.
+        # This makes Anthropic CC skills (which have tools=[]) work.
+        tools_were_defaulted = False
+        if not skill.tools:
+            for t_name, t_obj in self._context.tools.items():
+                if t_name.startswith("skill_") or t_name == "skill_create":
+                    continue
+                if t_name == "file_write":
+                    skill_registry.register(FileWriteTool(output_dir=skill_output_dir))
+                else:
+                    import contextlib
+
+                    with contextlib.suppress(ValueError):
+                        skill_registry.register(t_obj)
+            tools_were_defaulted = True
+
         # Also register skill-tools for composition
         register_skill_tools(
             skill_registry,
@@ -465,24 +481,55 @@ class ReplSession:
             on_skill_summary=self._ui.show_skill_summary,
         )
 
-        skill_tools = skill_registry.filter_by_names(skill.tools)
-        # Also include skill_ prefixed versions
-        for t_name in skill.tools:
-            prefixed = f"skill_{t_name}"
-            st = skill_registry.get(prefixed)
-            if st is not None:
-                skill_tools[prefixed] = st
+        if skill.tools:
+            skill_tools = skill_registry.filter_by_names(skill.tools)
+            # Also include skill_ prefixed versions
+            for t_name in skill.tools:
+                prefixed = f"skill_{t_name}"
+                st = skill_registry.get(prefixed)
+                if st is not None:
+                    skill_tools[prefixed] = st
+        else:
+            # Defaulted: use all registered base tools (exclude skill_ prefixed)
+            skill_tools = {
+                n: obj
+                for n, obj in (
+                    (name, skill_registry.get(name))
+                    for name in skill_registry.list_names()
+                )
+                if obj is not None
+                and not n.startswith("skill_")
+                and n != "skill_create"
+            }
 
         skill_schemas = [
             tool_obj.to_function_schema() for tool_obj in skill_tools.values()
         ]
 
+        # Build the effective system prompt, injecting tool preamble if defaulted
+        from zhi.tools.skill_tool import _TOOL_PREAMBLE
+
+        effective_prompt = skill.system_prompt
+        if tools_were_defaulted and skill_tools:
+            tool_list = "\n".join(
+                f"- **{n}**: {obj.description}"
+                for n, obj in skill_tools.items()
+                if hasattr(obj, "description")
+            )
+            effective_prompt += _TOOL_PREAMBLE.format(tool_list=tool_list)
+
+        has_ask_user = "ask_user" in (
+            skill.tools if skill.tools else list(skill_tools.keys())
+        )
+
         conversation: list[dict[str, Any]] = []
-        if skill.system_prompt:
+        if effective_prompt:
             conversation.append(
                 {
                     "role": Role.SYSTEM.value,
-                    "content": prepend_preamble(skill.system_prompt),
+                    "content": prepend_preamble(
+                        effective_prompt, has_ask_user=has_ask_user
+                    ),
                 }
             )
         conversation.append({"role": Role.USER.value, "content": user_content})
