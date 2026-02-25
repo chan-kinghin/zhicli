@@ -715,6 +715,91 @@ class TestAgentFileCounting:
         assert ctx.files_written == 1
 
 
+class TestAgentToolUseCount:
+    """Test tool_use_count tracking."""
+
+    def test_tool_use_count_incremented_on_success(self) -> None:
+        """tool_use_count increments for each successful tool call."""
+        tool_a = MockTool(name="tool_a", result="ok")
+        tool_b = MockTool(name="tool_b", result="ok")
+        responses = [
+            MockResponse(
+                tool_calls=[
+                    _make_tool_call("tool_a", call_id="c1"),
+                    _make_tool_call("tool_b", call_id="c2"),
+                ],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(
+            responses, tools={"tool_a": tool_a, "tool_b": tool_b}
+        )
+
+        run(ctx)
+
+        assert ctx.tool_use_count == 2
+
+    def test_tool_use_count_not_incremented_on_error(self) -> None:
+        """tool_use_count does NOT increment when tool returns an error."""
+        tool = MockTool(name="file_read", result="Error: not found")
+        responses = [
+            MockResponse(
+                tool_calls=[_make_tool_call("file_read")],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(responses, tools={"file_read": tool})
+
+        run(ctx)
+
+        assert ctx.tool_use_count == 0
+
+    def test_tool_use_count_not_incremented_on_exception(self) -> None:
+        """tool_use_count does NOT increment when tool raises an exception."""
+        tool = MockTool(
+            name="file_read", raises=RuntimeError("boom")
+        )
+        responses = [
+            MockResponse(
+                tool_calls=[_make_tool_call("file_read")],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(responses, tools={"file_read": tool})
+
+        run(ctx)
+
+        # Exception results start with "Error executing"
+        assert ctx.tool_use_count == 0
+
+    def test_tool_use_count_across_turns(self) -> None:
+        """tool_use_count accumulates across multiple turns."""
+        tool = MockTool(name="t", result="ok")
+        responses = [
+            MockResponse(
+                tool_calls=[_make_tool_call("t", call_id="c1")],
+            ),
+            MockResponse(
+                tool_calls=[_make_tool_call("t", call_id="c2")],
+            ),
+            MockResponse(content="Done"),
+        ]
+        ctx = _make_context(responses, tools={"t": tool})
+
+        run(ctx)
+
+        assert ctx.tool_use_count == 2
+
+    def test_tool_use_count_zero_without_tools(self) -> None:
+        """tool_use_count stays 0 when no tools are called."""
+        responses = [MockResponse(content="Hello")]
+        ctx = _make_context(responses)
+
+        run(ctx)
+
+        assert ctx.tool_use_count == 0
+
+
 class TestAgentStreaming:
     """Test streaming turn behavior."""
 

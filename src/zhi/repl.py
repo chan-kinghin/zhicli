@@ -458,6 +458,11 @@ class ReplSession:
             skills,
             self._context.client,
             base_output_dir=base_output_dir,
+            on_tool_start=self._ui.show_tool_start,
+            on_tool_end=self._ui.show_tool_end,
+            on_tool_total=self._ui.set_tool_total,
+            on_trace_depth=self._ui.set_trace_depth,
+            on_skill_summary=self._ui.show_skill_summary,
         )
 
         skill_tools = skill_registry.filter_by_names(skill.tools)
@@ -558,12 +563,18 @@ class ReplSession:
 
         self._ui.stream_end()
 
-        # Show file summary after skill runs (Bug 17)
-        if skill_context.files_read or skill_context.files_written:
+        # Show summary after skill runs
+        if (
+            skill_context.files_read
+            or skill_context.files_written
+            or skill_context.tool_use_count
+        ):
             self._ui.show_summary(
                 files_read=skill_context.files_read,
                 files_written=skill_context.files_written,
                 elapsed=elapsed,
+                tool_count=skill_context.tool_use_count,
+                tokens=skill_context.session_tokens,
             )
 
         return result
@@ -818,12 +829,18 @@ class ReplSession:
         else:
             self._ui.stream_end()
 
-        # Show summary if files were touched
-        if self._context.files_read or self._context.files_written:
+        # Show summary if tools were used or files were touched
+        if (
+            self._context.files_read
+            or self._context.files_written
+            or self._context.tool_use_count
+        ):
             self._ui.show_summary(
                 files_read=self._context.files_read,
                 files_written=self._context.files_written,
                 elapsed=elapsed,
+                tool_count=self._context.tool_use_count,
+                tokens=self._context.session_tokens,
             )
 
         return result

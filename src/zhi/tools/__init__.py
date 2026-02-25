@@ -100,6 +100,11 @@ def register_skill_tools(
     permission_mode_getter: Any | None = None,
     on_ask_user: Any | None = None,
     base_output_dir: Any | None = None,
+    on_tool_start: Any | None = None,
+    on_tool_end: Any | None = None,
+    on_tool_total: Any | None = None,
+    on_trace_depth: Any | None = None,
+    on_skill_summary: Any | None = None,
 ) -> None:
     """Wrap each discovered SkillConfig as a SkillTool and register it.
 
@@ -115,6 +120,11 @@ def register_skill_tools(
         on_ask_user: Callback for AskUserTool in nested skills.
         base_output_dir: Base output directory for skill-scoped file writes.
             Each skill will write to ``base_output_dir/<skill_name>/``.
+        on_tool_start: Trace callback for tool start in nested skills.
+        on_tool_end: Trace callback for tool end in nested skills.
+        on_tool_total: Trace callback for tool total in nested skills.
+        on_trace_depth: Callback to set trace depth for nested indentation.
+        on_skill_summary: Callback to show skill summary after nested run.
     """
     from pathlib import Path
 
@@ -131,6 +141,11 @@ def register_skill_tools(
             permission_mode_getter=permission_mode_getter,
             on_ask_user=on_ask_user,
             base_output_dir=output_path,
+            on_tool_start=on_tool_start,
+            on_tool_end=on_tool_end,
+            on_tool_total=on_tool_total,
+            on_trace_depth=on_trace_depth,
+            on_skill_summary=on_skill_summary,
         )
         try:
             registry.register(tool)

@@ -46,15 +46,15 @@ class TestUINoColor:
         assert "..." in output
 
     def test_show_tool_start_verbose(self) -> None:
-        """Verbose mode shows full [TOOL] output with args."""
+        """Verbose mode shows trace-style output with args."""
         ui = self._make_ui()
         ui.verbose = True
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
             ui.show_tool_start("file_read", {"path": "test.txt"})
         output = mock_out.getvalue()
-        assert "[TOOL]" in output
         assert "file_read" in output
         assert "test.txt" in output
+        assert "*" in output  # no-color bullet
 
     def test_show_tool_start_with_counter(self) -> None:
         ui = self._make_ui()
@@ -68,17 +68,21 @@ class TestUINoColor:
         ui = self._make_ui()
         ui.verbose = True
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "test.txt"})
             ui.show_tool_end("file_read", "file content here")
         output = mock_out.getvalue()
-        assert "[DONE]" in output
-        assert "file_read" in output
+        assert "\u2713" in output  # checkmark
+        assert "s" in output  # elapsed time
 
     def test_show_tool_end_not_verbose(self) -> None:
         ui = self._make_ui()
         ui.verbose = False
         with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "test.txt"})
             ui.show_tool_end("file_read", "file content here")
-        assert "done" in mock_out.getvalue().lower()
+        output = mock_out.getvalue()
+        assert "\u2713" in output  # checkmark
+        assert "s" in output  # elapsed time
 
     def test_show_error(self) -> None:
         from zhi.errors import ApiError
@@ -341,6 +345,191 @@ class TestElapsedSpinner:
         list(es.__rich_console__(console, console.options))
         assert "glm-5" in spinner.text
         assert "s" in spinner.text  # elapsed time suffix
+
+
+class TestUIFormatTokens:
+    """Test _format_tokens helper."""
+
+    def test_under_1000(self) -> None:
+        from zhi.ui import _format_tokens
+
+        assert _format_tokens(500) == "500"
+        assert _format_tokens(0) == "0"
+
+    def test_thousands(self) -> None:
+        from zhi.ui import _format_tokens
+
+        assert _format_tokens(1500) == "1.5k"
+        assert _format_tokens(8200) == "8.2k"
+
+    def test_large(self) -> None:
+        from zhi.ui import _format_tokens
+
+        assert _format_tokens(123000) == "123k"
+
+
+class TestUIBuildMetrics:
+    """Test _build_metrics helper."""
+
+    def test_all_metrics(self) -> None:
+        from zhi.ui import _build_metrics
+
+        result = _build_metrics(tool_count=5, tokens=8200, elapsed=4.5)
+        assert "5 tools" in result
+        assert "8.2k" in result
+        assert "4.5s" in result
+        assert "\u00b7" in result  # middle dot separator
+
+    def test_only_tools(self) -> None:
+        from zhi.ui import _build_metrics
+
+        result = _build_metrics(tool_count=3)
+        assert "3 tools" in result
+        assert "\u00b7" not in result
+
+    def test_empty(self) -> None:
+        from zhi.ui import _build_metrics
+
+        assert _build_metrics() == ""
+
+
+class TestUITiming:
+    """Test tool timing in show_tool_start/end."""
+
+    def test_compact_timing_nocolor(self) -> None:
+        """Compact mode shows timing in tool end."""
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "test.txt"})
+            ui.show_tool_end("file_read", "contents")
+        output = mock_out.getvalue()
+        assert "file_read" in output
+        assert "\u2713" in output  # checkmark
+        assert "s" in output  # elapsed time suffix
+
+    def test_compact_error_symbol_nocolor(self) -> None:
+        """Compact mode shows error symbol for failed tools."""
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "x.txt"})
+            ui.show_tool_end("file_read", "Error: not found")
+        output = mock_out.getvalue()
+        assert "\u2717" in output  # cross mark
+
+    def test_verbose_trace_symbols_nocolor(self) -> None:
+        """Verbose mode uses trace bullet/hook symbols."""
+        from zhi.ui import UI
+
+        ui = UI(no_color=True, verbose=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "a.txt"})
+            ui.show_tool_end("file_read", "contents")
+        output = mock_out.getvalue()
+        assert "*" in output  # no-color bullet
+        assert "|_" in output  # no-color result hook
+        assert "\u2713" in output
+
+    def test_verbose_nested_depth_nocolor(self) -> None:
+        """Nested depth adds indentation in verbose mode."""
+        from zhi.ui import UI
+
+        ui = UI(no_color=True, verbose=True)
+        ui.set_trace_depth(1)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_tool_start("file_read", {"path": "b.txt"})
+        output = mock_out.getvalue()
+        # Depth 1 = nested, should use hook and indentation
+        assert "|_" in output
+        assert "  " in output  # indentation from depth
+
+
+class TestUITraceDepth:
+    """Test trace depth management."""
+
+    def test_set_trace_depth(self) -> None:
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        assert ui._trace_depth == 0
+        ui.set_trace_depth(2)
+        assert ui._trace_depth == 2
+        ui.set_trace_depth(0)
+        assert ui._trace_depth == 0
+
+
+class TestUISkillSummary:
+    """Test show_skill_summary method."""
+
+    def test_skill_summary_nocolor(self) -> None:
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_skill_summary(tool_count=3, tokens=2400, elapsed=1.2)
+        output = mock_out.getvalue()
+        assert "3 tools" in output
+        assert "2.4k" in output
+        assert "1.2s" in output
+
+    def test_skill_summary_with_depth(self) -> None:
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        ui.set_trace_depth(1)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_skill_summary(tool_count=2, tokens=1000, elapsed=0.5)
+        output = mock_out.getvalue()
+        # Should have indentation from depth
+        assert output.startswith("  ")
+
+
+class TestUIEnhancedSummary:
+    """Test enhanced show_summary with tool_count and tokens."""
+
+    def test_summary_with_all_metrics(self) -> None:
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_summary(
+                files_read=2,
+                files_written=1,
+                elapsed=4.5,
+                tool_count=5,
+                tokens=8200,
+            )
+        output = mock_out.getvalue()
+        assert "2 files read" in output
+        assert "1 file written" in output
+        assert "5 tools" in output
+        assert "8.2k" in output
+        assert "4.5s" in output
+
+    def test_summary_with_only_elapsed(self) -> None:
+        """When no tool_count or tokens, elapsed still shows."""
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_summary(files_read=1, elapsed=2.0)
+        output = mock_out.getvalue()
+        assert "1 file read" in output
+        assert "2.0s" in output
+
+    def test_summary_without_files_but_with_tools(self) -> None:
+        """Summary shows 'done' fallback text when no files, plus tool metrics."""
+        from zhi.ui import UI
+
+        ui = UI(no_color=True)
+        with patch("sys.stdout", new_callable=io.StringIO) as mock_out:
+            ui.show_summary(tool_count=3, tokens=500, elapsed=1.0)
+        output = mock_out.getvalue()
+        assert "3 tools" in output
+        assert "500 tokens" in output
 
 
 class TestNoOpContext:

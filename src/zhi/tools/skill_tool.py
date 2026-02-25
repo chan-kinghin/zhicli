@@ -48,6 +48,12 @@ class SkillTool:
         on_permission: Callable[[ToolLike, dict[str, Any]], bool] | None = None,
         on_ask_user: Callable[[str, list[str] | None], str] | None = None,
         base_output_dir: Path | None = None,
+        # Trace callbacks for nested visibility
+        on_tool_start: Callable[[str, dict[str, Any]], None] | None = None,
+        on_tool_end: Callable[[str, str], None] | None = None,
+        on_tool_total: Callable[[int], None] | None = None,
+        on_trace_depth: Callable[[int], None] | None = None,
+        on_skill_summary: Callable[[int, int, float], None] | None = None,
     ) -> None:
         self._skill = skill
         self._client = client
@@ -59,6 +65,11 @@ class SkillTool:
         self._on_permission = on_permission
         self._on_ask_user = on_ask_user
         self._base_output_dir = base_output_dir
+        self._on_tool_start = on_tool_start
+        self._on_tool_end = on_tool_end
+        self._on_tool_total = on_tool_total
+        self._on_trace_depth = on_trace_depth
+        self._on_skill_summary = on_skill_summary
 
     def _get_permission_mode(self) -> PermissionMode:
         """Read permission_mode from getter (live) or fall back to stored value."""
@@ -282,6 +293,11 @@ class SkillTool:
                     on_permission=self._on_permission,
                     on_ask_user=self._on_ask_user,
                     base_output_dir=self._base_output_dir,
+                    on_tool_start=self._on_tool_start,
+                    on_tool_end=self._on_tool_end,
+                    on_tool_total=self._on_tool_total,
+                    on_trace_depth=self._on_trace_depth,
+                    on_skill_summary=self._on_skill_summary,
                 )
                 inner_tools[child.name] = child
                 inner_schemas.append(child.to_function_schema())
@@ -326,13 +342,34 @@ class SkillTool:
             max_context_messages=_DEFAULT_SKILL_CONTEXT_MESSAGES,
             on_permission=self._on_permission,
             on_ask_user=self._on_ask_user,
+            on_tool_start=self._on_tool_start,
+            on_tool_end=self._on_tool_end,
+            on_tool_total=self._on_tool_total,
         )
 
+        # Set trace depth for nested indentation
+        if self._on_trace_depth:
+            self._on_trace_depth(self._depth + 1)
+
+        import time as time_mod
+
+        t0 = time_mod.monotonic()
         try:
             result = agent_run(context)
         except Exception as e:
             logger.exception("Skill '%s' execution failed", skill_name)
             return f"Error running skill '{skill_name}': {e}"
+        finally:
+            elapsed = time_mod.monotonic() - t0
+            # Emit skill summary and restore depth
+            if self._on_skill_summary:
+                self._on_skill_summary(
+                    context.tool_use_count,
+                    context.session_tokens,
+                    elapsed,
+                )
+            if self._on_trace_depth:
+                self._on_trace_depth(self._depth)
 
         if result is None:
             return f"Skill '{skill_name}' reached max turns without a final response."

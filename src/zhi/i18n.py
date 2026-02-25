@@ -233,6 +233,16 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ui.usage_nocolor": "[USAGE] Session: {tokens} tokens",
         "ui.session_used": "Session: ",
         "ui.tokens_suffix": " tokens",
+        # -- Trace --
+        "ui.trace_bullet": "\u23fa",
+        "ui.trace_result": "\u23bf",
+        "ui.trace_ok": "\u2713",
+        "ui.trace_fail": "\u2717",
+        "ui.trace_bullet_nocolor": "*",
+        "ui.trace_result_nocolor": "|_",
+        "ui.tools_metric": "{count} tools",
+        "ui.tokens_metric": "{tokens} tokens",
+        "ui.skill_summary": "Done ({metrics})",
         # -- Setup wizard --
         "setup.welcome": "Welcome to zhi (v{version})",
         "setup.intro": "Let's get you set up. This takes about 30 seconds.",
@@ -371,6 +381,16 @@ _STRINGS: dict[str, dict[str, str]] = {
         "ui.usage_nocolor": "[\u7edf\u8ba1] \u672c\u6b21\uff1a{tokens} \u4e2a token",
         "ui.session_used": "\u672c\u6b21\uff1a",
         "ui.tokens_suffix": " \u4e2a token",
+        # -- Trace --
+        "ui.trace_bullet": "\u23fa",
+        "ui.trace_result": "\u23bf",
+        "ui.trace_ok": "\u2713",
+        "ui.trace_fail": "\u2717",
+        "ui.trace_bullet_nocolor": "*",
+        "ui.trace_result_nocolor": "|_",
+        "ui.tools_metric": "{count} \u4e2a\u5de5\u5177",
+        "ui.tokens_metric": "{tokens} \u4e2a token",
+        "ui.skill_summary": "\u5b8c\u6210 ({metrics})",
         # -- Setup wizard --
         "setup.welcome": "\u6b22\u8fce\u4f7f\u7528 zhi (v{version})",
         "setup.intro": "\u8ba9\u6211\u4eec\u6765\u5b8c\u6210\u521d\u59cb\u8bbe\u7f6e\uff0c\u5927\u7ea6\u9700\u8981 30 \u79d2\u3002",

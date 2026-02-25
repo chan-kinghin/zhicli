@@ -180,6 +180,11 @@ def _build_context(
         permission_mode_getter=permission_mode_getter,
         on_ask_user=_ask_user_cli,
         base_output_dir=config.output_dir,
+        on_tool_start=ui.show_tool_start,
+        on_tool_end=ui.show_tool_end,
+        on_tool_total=ui.set_tool_total,
+        on_trace_depth=ui.set_trace_depth,
+        on_skill_summary=ui.show_skill_summary,
     )
 
     # Register skill_create so the LLM can create new user skills
@@ -262,11 +267,13 @@ def _run_oneshot(config: Any, ui: Any, message: str) -> None:
     elapsed = time.monotonic() - t0
     if result:
         ui.stream_end()
-    if context.files_read or context.files_written:
+    if context.files_read or context.files_written or context.tool_use_count:
         ui.show_summary(
             files_read=context.files_read,
             files_written=context.files_written,
             elapsed=elapsed,
+            tool_count=context.tool_use_count,
+            tokens=context.session_tokens,
         )
 
 
@@ -329,11 +336,13 @@ def _run_skill(config: Any, ui: Any, skill_name: str, files: list[str]) -> None:
     elapsed = time.monotonic() - t0
     if result:
         ui.stream_end()
-    if context.files_read or context.files_written:
+    if context.files_read or context.files_written or context.tool_use_count:
         ui.show_summary(
             files_read=context.files_read,
             files_written=context.files_written,
             elapsed=elapsed,
+            tool_count=context.tool_use_count,
+            tokens=context.session_tokens,
         )
 
 

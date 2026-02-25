@@ -100,6 +100,8 @@ class Context:
     # File counters for summary line
     files_read: int = 0
     files_written: int = 0
+    # Tool use counter for trace summary
+    tool_use_count: int = 0
     # Streaming mode (use chat_stream when available)
     streaming: bool = True
     # Sliding window: max messages sent to the LLM (0 = unlimited).
@@ -372,6 +374,10 @@ def _execute_tool_calls(context: Context, tool_calls: list[dict[str, Any]]) -> N
         # Notify tool end
         if context.on_tool_end:
             context.on_tool_end(func_name, result)
+
+        # Count successful tool uses
+        if not result.startswith("Error"):
+            context.tool_use_count += 1
 
         # Count files for summary
         if func_name == "file_read" and not result.startswith("Error"):

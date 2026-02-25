@@ -828,3 +828,163 @@ class TestSkillToolDisableModelInvocation:
         )
         result = tool.execute(input="Just the input")
         assert result == "Just the input"
+
+
+# ── Trace Callbacks ──────────────────────────────────────────────────
+
+
+class TestSkillToolTraceCallbacks:
+    def test_trace_callbacks_wired_to_context(self) -> None:
+        """on_tool_start/end/total are forwarded to inner Context."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        on_start = MagicMock()
+        on_end = MagicMock()
+        on_total = MagicMock()
+
+        tool = SkillTool(
+            skill=_make_skill(),
+            client=client,
+            registry=registry,
+            on_tool_start=on_start,
+            on_tool_end=on_end,
+            on_tool_total=on_total,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        assert ctx.on_tool_start is on_start
+        assert ctx.on_tool_end is on_end
+        assert ctx.on_tool_total is on_total
+
+    def test_trace_depth_set_and_restored(self) -> None:
+        """on_trace_depth is called with depth+1 before run and restored after."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        depth_calls: list[int] = []
+        on_depth = MagicMock(side_effect=lambda d: depth_calls.append(d))
+
+        tool = SkillTool(
+            skill=_make_skill(),
+            client=client,
+            registry=registry,
+            depth=0,
+            on_trace_depth=on_depth,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok"):
+            tool.execute(input="test")
+
+        # Should be called with 1 (depth+1) then 0 (restore)
+        assert depth_calls == [1, 0]
+
+    def test_skill_summary_emitted_after_run(self) -> None:
+        """on_skill_summary is called with tool_count, tokens, elapsed."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        on_summary = MagicMock()
+
+        tool = SkillTool(
+            skill=_make_skill(),
+            client=client,
+            registry=registry,
+            on_skill_summary=on_summary,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok"):
+            tool.execute(input="test")
+
+        on_summary.assert_called_once()
+        args = on_summary.call_args.args
+        # tool_count, tokens, elapsed
+        assert len(args) == 3
+        assert isinstance(args[0], int)  # tool_use_count
+        assert isinstance(args[1], int)  # session_tokens
+        assert isinstance(args[2], float)  # elapsed
+
+    def test_skill_summary_emitted_on_error(self) -> None:
+        """on_skill_summary fires even when agent_run raises."""
+        client = _make_client()
+        client.chat.side_effect = RuntimeError("API down")
+        registry = _make_registry_with_fake()
+        on_summary = MagicMock()
+        on_depth = MagicMock()
+
+        tool = SkillTool(
+            skill=_make_skill(),
+            client=client,
+            registry=registry,
+            on_skill_summary=on_summary,
+            on_trace_depth=on_depth,
+        )
+
+        result = tool.execute(input="test")
+
+        # Even on error, summary and depth restore happen via finally
+        on_summary.assert_called_once()
+        assert on_depth.call_count == 2  # set + restore
+
+    def test_trace_callbacks_propagated_to_child(self) -> None:
+        """Trace callbacks propagate when re-wrapping child SkillTools."""
+        client = _make_client()
+        on_start = MagicMock()
+        on_depth = MagicMock()
+        on_summary = MagicMock()
+
+        parent_skill = _make_skill(name="parent", tools=["child"])
+        child_skill = _make_skill(name="child", tools=["file_read"])
+
+        registry = _make_registry_with_fake()
+        child_tool = SkillTool(skill=child_skill, client=client, registry=registry)
+        registry.register(child_tool)
+
+        parent_tool = SkillTool(
+            skill=parent_skill,
+            client=client,
+            registry=registry,
+            on_tool_start=on_start,
+            on_trace_depth=on_depth,
+            on_skill_summary=on_summary,
+        )
+
+        with patch("zhi.tools.skill_tool.agent_run", return_value="ok") as mock_run:
+            parent_tool.execute(input="test")
+
+        ctx = mock_run.call_args.args[0]
+        rewrapped = ctx.tools.get("skill_child")
+        assert isinstance(rewrapped, SkillTool)
+        assert rewrapped._on_tool_start is on_start
+        assert rewrapped._on_trace_depth is on_depth
+        assert rewrapped._on_skill_summary is on_summary
+
+    def test_register_skill_tools_forwards_trace_callbacks(self) -> None:
+        """register_skill_tools forwards all trace callback params."""
+        registry = _make_registry_with_fake()
+        skills = {"summarize": _make_skill(name="summarize")}
+        client = _make_client()
+        on_start = MagicMock()
+        on_end = MagicMock()
+        on_total = MagicMock()
+        on_depth = MagicMock()
+        on_summary = MagicMock()
+
+        register_skill_tools(
+            registry,
+            skills,
+            client,
+            on_tool_start=on_start,
+            on_tool_end=on_end,
+            on_tool_total=on_total,
+            on_trace_depth=on_depth,
+            on_skill_summary=on_summary,
+        )
+
+        tool = registry.get("skill_summarize")
+        assert isinstance(tool, SkillTool)
+        assert tool._on_tool_start is on_start
+        assert tool._on_tool_end is on_end
+        assert tool._on_tool_total is on_total
+        assert tool._on_trace_depth is on_depth
+        assert tool._on_skill_summary is on_summary

@@ -19,6 +19,28 @@ def _no_color() -> bool:
     return bool(os.environ.get("NO_COLOR"))
 
 
+def _format_tokens(tokens: int) -> str:
+    """Format a token count compactly: 1500 → '1.5k', 12300 → '12.3k'."""
+    if tokens < 1000:
+        return str(tokens)
+    value = tokens / 1000
+    if value >= 100:
+        return f"{value:.0f}k"
+    return f"{value:.1f}k"
+
+
+def _build_metrics(tool_count: int = 0, tokens: int = 0, elapsed: float = 0.0) -> str:
+    """Build a compact metrics string like '5 tools · 8.2k tokens · 4.5s'."""
+    parts: list[str] = []
+    if tool_count > 0:
+        parts.append(t("ui.tools_metric", count=tool_count))
+    if tokens > 0:
+        parts.append(t("ui.tokens_metric", tokens=_format_tokens(tokens)))
+    if elapsed > 0:
+        parts.append(f"{elapsed:.1f}s")
+    return " \u00b7 ".join(parts)
+
+
 class UI:
     """Wraps all terminal output via Rich, with no-color fallback."""
 
@@ -31,6 +53,8 @@ class UI:
         self._waiting_live: Any = None
         self._waiting_start: float = 0.0
         self._stream_live: Any = None
+        self._tool_start_time: float = 0.0
+        self._trace_depth: int = 0
 
         if not self._no_color:
             from rich.console import Console
@@ -130,28 +154,35 @@ class UI:
     def show_tool_start(self, name: str, args: dict[str, Any]) -> None:
         """Display tool execution start with step counter."""
         self._tool_step += 1
+        self._tool_start_time = time.monotonic()
         args_str = ", ".join(f"{k}={v!r}" for k, v in args.items())
         if len(args_str) > 80:
             args_str = args_str[:77] + "..."
 
+        indent = "  " * self._trace_depth
+
         if self._verbose:
-            # Verbose: full two-line output
+            # Verbose: trace-style output with symbols
             if self._no_color:
-                if self._tool_total > 0:
-                    step = self._tool_step
-                    total = self._tool_total
-                    print(f"[TOOL] [{step}/{total}] {name}: {args_str}")
+                bullet = t("ui.trace_bullet_nocolor")
+                if self._trace_depth > 0:
+                    hook = t("ui.trace_result_nocolor")
+                    print(f"{indent}{hook} {name}({args_str})")
                 else:
-                    print(f"[TOOL] {name}: {args_str}")
+                    print(f"{indent}{bullet} {name}({args_str})")
                 return
             from rich.text import Text
 
-            if self._tool_total > 0:
-                prefix = f"[{self._tool_step}/{self._tool_total}] "
+            if self._trace_depth > 0:
+                hook = t("ui.trace_result")
+                text = Text(f"{indent}{hook} ", style="dim")
+                text.append(f"{name}", style="bold cyan")
+                text.append(f"({args_str})", style="dim")
             else:
-                prefix = ""
-            text = Text(f"{prefix}{name}: ", style="bold cyan")
-            text.append(args_str, style="dim")
+                bullet = t("ui.trace_bullet")
+                text = Text(f"{indent}{bullet} ", style="cyan")
+                text.append(f"{name}", style="bold cyan")
+                text.append(f"({args_str})", style="dim")
             self._console.print(text)
         else:
             # Compact: single line, no newline yet (show_tool_end completes it)
@@ -160,33 +191,47 @@ class UI:
             else:
                 prefix = ""
             if self._no_color:
-                print(f"  {prefix}{name} ...", end="", flush=True)
+                print(f"  {indent}{prefix}{name} ...", end="", flush=True)
             else:
                 from rich.text import Text
 
-                text = Text(f"  {prefix}{name} ...", style="dim cyan")
+                text = Text(f"  {indent}{prefix}{name} ...", style="dim cyan")
                 self._console.print(text, end="")
 
     def show_tool_end(self, name: str, result: str) -> None:
         """Display tool execution result."""
+        elapsed = time.monotonic() - self._tool_start_time
+        elapsed_str = f"{elapsed:.1f}s"
+        is_error = result.startswith("Error")
+
+        indent = "  " * self._trace_depth
+
         if self._verbose:
-            display = result[:500] + "..." if len(result) > 500 else result
+            # Verbose: trace-style result line with timing
+            ok_sym = t("ui.trace_fail") if is_error else t("ui.trace_ok")
             if self._no_color:
-                print(f"[DONE] {name}: {display}")
+                hook = t("ui.trace_result_nocolor")
+                ok_sym_nc = t("ui.trace_fail") if is_error else t("ui.trace_ok")
+                print(f"{indent}  {hook} {ok_sym_nc} {elapsed_str}")
             else:
                 from rich.text import Text
 
-                text = Text(f"  {name}: ", style="green")
-                text.append(display, style="dim")
+                hook = t("ui.trace_result")
+                style = "red" if is_error else "green"
+                text = Text(f"{indent}  {hook} ", style="dim")
+                text.append(ok_sym, style=style)
+                text.append(f" {elapsed_str}", style="dim")
                 self._console.print(text)
         else:
             # Compact: complete the single line started by show_tool_start
+            ok_sym = t("ui.trace_ok") if not is_error else t("ui.trace_fail")
             if self._no_color:
-                print(f" {t('ui.tool_done_suffix')}")
+                print(f" {ok_sym} {elapsed_str}")
             else:
                 from rich.text import Text
 
-                text = Text(f" {t('ui.tool_done_suffix')}", style="dim green")
+                style = "dim green" if not is_error else "dim red"
+                text = Text(f" {ok_sym} {elapsed_str}", style=style)
                 self._console.print(text)
 
     def show_spinner(self, message: str) -> Any:
@@ -265,11 +310,40 @@ class UI:
             default=False,
         )
 
+    def set_trace_depth(self, depth: int) -> None:
+        """Set the nesting depth for trace indentation."""
+        self._trace_depth = depth
+
+    def show_skill_summary(
+        self,
+        tool_count: int = 0,
+        tokens: int = 0,
+        elapsed: float = 0.0,
+    ) -> None:
+        """Display a summary line for a nested skill execution."""
+        metrics = _build_metrics(tool_count, tokens, elapsed)
+        summary = t("ui.skill_summary", metrics=metrics)
+        indent = "  " * self._trace_depth
+
+        if self._no_color:
+            hook = t("ui.trace_result_nocolor")
+            print(f"{indent}  {hook} {summary}")
+            return
+
+        from rich.text import Text
+
+        hook = t("ui.trace_result")
+        text = Text(f"{indent}  {hook} ", style="dim")
+        text.append(summary, style="dim green")
+        self._console.print(text)
+
     def show_summary(
         self,
         files_read: int = 0,
         files_written: int = 0,
         elapsed: float = 0.0,
+        tool_count: int = 0,
+        tokens: int = 0,
     ) -> None:
         """Display session summary line."""
         parts = []
@@ -280,16 +354,22 @@ class UI:
             s = "s" if files_written != 1 else ""
             parts.append(t("ui.files_written", count=files_written, s=s))
         summary = ", ".join(parts) if parts else t("ui.done_fallback")
-        elapsed_str = f"({elapsed:.1f}s)" if elapsed > 0 else ""
+
+        # Build metrics suffix (tool count, tokens, elapsed)
+        metrics = _build_metrics(tool_count, tokens, elapsed)
+        if metrics:
+            summary = f"{summary} ({metrics})"
+        elif elapsed > 0:
+            summary = f"{summary} ({elapsed:.1f}s)"
 
         if self._no_color:
-            print(f"[DONE] {summary} {elapsed_str}".strip())
+            print(f"[DONE] {summary}")
             return
 
         from rich.text import Text
 
         text = Text(t("ui.done_prefix"), style="bold green")
-        text.append(f"{summary} {elapsed_str}".strip())
+        text.append(summary)
         self._console.print(text)
 
     def show_usage(self, tokens: int, cost: float = 0.0) -> None:
