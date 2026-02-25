@@ -35,6 +35,8 @@ class SkillConfig:
     output_description: str = ""
     output_directory: str = "zhi-output"
     source: str = ""
+    version: str = ""
+    disable_model_invocation: bool = False
 
 
 def validate_skill_name(name: str) -> bool:
@@ -171,6 +173,8 @@ def load_skill(path: Path, *, source: str = "") -> SkillConfig:
         "max_turns",
         "input",
         "output",
+        "version",
+        "disable-model-invocation",
     }
     unknown = set(data.keys()) - known_fields
     if unknown:
@@ -211,4 +215,6 @@ def load_skill(path: Path, *, source: str = "") -> SkillConfig:
         output_description=output_description,
         output_directory=output_directory,
         source=source,
+        version=data.get("version", ""),
+        disable_model_invocation=bool(data.get("disable-model-invocation", False)),
     )

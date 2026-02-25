@@ -735,6 +735,110 @@ class TestSkillCreateSkippedReferences:
 # ── No empty references dir (C4) ──────────────────────────────────
 
 
+# ── Version parameter ──────────────────────────────────────────────
+
+
+class TestSkillCreateVersion:
+    def test_version_in_frontmatter(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="ver-skill",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            version="1.0.0",
+        )
+        content = (tmp_path / "ver-skill" / "SKILL.md").read_text(encoding="utf-8")
+        assert "version: 1.0.0" in content
+
+    def test_version_omitted_when_empty(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="no-ver",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+        )
+        content = (tmp_path / "no-ver" / "SKILL.md").read_text(encoding="utf-8")
+        assert "version:" not in content
+
+    def test_version_in_yaml(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="yaml-ver",
+            description="desc",
+            system_prompt="prompt",
+            tools=["file_read"],
+            format="yaml",
+            version="2.0.0",
+        )
+        data = yaml.safe_load(
+            (tmp_path / "yaml-ver.yaml").read_text(encoding="utf-8")
+        )
+        assert data["version"] == "2.0.0"
+
+    def test_version_roundtrip(self, tmp_path: Path) -> None:
+        from zhi.skills.loader_md import load_skill_md
+
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="rt-ver",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            version="3.1.0",
+        )
+        config = load_skill_md(tmp_path / "rt-ver" / "SKILL.md")
+        assert config.version == "3.1.0"
+
+
+# ── Disable model invocation parameter ────────────────────────────
+
+
+class TestSkillCreateDisableModelInvocation:
+    def test_disable_model_invocation_in_frontmatter(self, tmp_path: Path) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="dmi-skill",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            disable_model_invocation=True,
+        )
+        content = (tmp_path / "dmi-skill" / "SKILL.md").read_text(encoding="utf-8")
+        assert "disable-model-invocation: true" in content
+
+    def test_disable_model_invocation_omitted_when_false(
+        self, tmp_path: Path
+    ) -> None:
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="no-dmi",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+        )
+        content = (tmp_path / "no-dmi" / "SKILL.md").read_text(encoding="utf-8")
+        assert "disable-model-invocation" not in content
+
+    def test_disable_model_invocation_roundtrip(self, tmp_path: Path) -> None:
+        from zhi.skills.loader_md import load_skill_md
+
+        tool = SkillCreateTool(skills_dir=tmp_path)
+        tool.execute(
+            name="rt-dmi",
+            description="desc",
+            system_prompt="body",
+            tools=["file_read"],
+            disable_model_invocation=True,
+        )
+        config = load_skill_md(tmp_path / "rt-dmi" / "SKILL.md")
+        assert config.disable_model_invocation is True
+
+
+# ── No empty references dir (C4) ──────────────────────────────────
+
+
 class TestSkillCreateNoEmptyRefsDir:
     def test_no_empty_references_dir(self, tmp_path: Path) -> None:
         skills_dir = tmp_path / "skills"

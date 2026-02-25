@@ -158,6 +158,8 @@ def load_skill_md(path: Path, *, source: str = "") -> SkillConfig:
         output_description=output_description,
         output_directory=output_directory,
         source=source,
+        version=data.get("version", ""),
+        disable_model_invocation=bool(data.get("disable-model-invocation", False)),
     )
 
 

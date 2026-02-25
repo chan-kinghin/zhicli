@@ -171,6 +171,61 @@ class SkillTool:
             logger.warning(msg)
             return f"Error: {msg}"
 
+        # Build user message from kwargs — inject file content for file-type args
+        # (like Claude Code: read files at the infrastructure level, don't rely
+        # on the LLM to forward paths correctly)
+        user_input = kwargs.get("input", "")
+
+        file_args = {
+            arg["name"]: arg
+            for arg in self._skill.input_args
+            if arg.get("name") and arg.get("type") == "file"
+        }
+
+        # Fail fast: reject empty required file args before making API calls
+        for arg_name, arg_def in file_args.items():
+            value = kwargs.get(arg_name, "")
+            if arg_def.get("required") and not value:
+                return (
+                    f"Error: Required file argument '{arg_name}' is empty. "
+                    f"Please provide the full file path."
+                )
+
+        file_sections: list[str] = []
+        non_file_extras: dict[str, Any] = {}
+
+        for k, v in kwargs.items():
+            if k == "input":
+                continue
+            if k in file_args:
+                if v:  # Non-empty file path — read and inject content
+                    att = self._read_file(str(v))
+                    if att.error:
+                        file_sections.append(
+                            f"--- File ({k}): {att.filename} ---\n[Error: {att.error}]"
+                        )
+                    else:
+                        file_sections.append(
+                            f"--- File ({k}): {att.filename} ---\n{att.content}"
+                        )
+                # Skip empty optional file args — don't inject noise
+            else:
+                non_file_extras[k] = v
+
+        if file_sections:
+            user_input += "\n\n" + "\n\n".join(file_sections)
+        if non_file_extras:
+            user_input += f"\n\nAdditional arguments: {non_file_extras}"
+
+        # Early return: disabled model invocation returns instructions directly
+        if self._skill.disable_model_invocation:
+            parts = []
+            if self._skill.system_prompt:
+                parts.append(self._skill.system_prompt)
+            if user_input.strip():
+                parts.append(user_input)
+            return "\n\n".join(parts)
+
         # Read current permission mode (live, not frozen)
         current_permission_mode = self._get_permission_mode()
 
@@ -240,58 +295,15 @@ class SkillTool:
                     tool_name,
                 )
 
-        # Build user message from kwargs — inject file content for file-type args
-        # (like Claude Code: read files at the infrastructure level, don't rely
-        # on the LLM to forward paths correctly)
-        user_input = kwargs.get("input", "")
-
-        file_args = {
-            arg["name"]: arg
-            for arg in self._skill.input_args
-            if arg.get("name") and arg.get("type") == "file"
-        }
-
-        # Fail fast: reject empty required file args before making API calls
-        for arg_name, arg_def in file_args.items():
-            value = kwargs.get(arg_name, "")
-            if arg_def.get("required") and not value:
-                return (
-                    f"Error: Required file argument '{arg_name}' is empty. "
-                    f"Please provide the full file path."
-                )
-
-        file_sections: list[str] = []
-        non_file_extras: dict[str, Any] = {}
-
-        for k, v in kwargs.items():
-            if k == "input":
-                continue
-            if k in file_args:
-                if v:  # Non-empty file path — read and inject content
-                    att = self._read_file(str(v))
-                    if att.error:
-                        file_sections.append(
-                            f"--- File ({k}): {att.filename} ---\n[Error: {att.error}]"
-                        )
-                    else:
-                        file_sections.append(
-                            f"--- File ({k}): {att.filename} ---\n{att.content}"
-                        )
-                # Skip empty optional file args — don't inject noise
-            else:
-                non_file_extras[k] = v
-
-        if file_sections:
-            user_input += "\n\n" + "\n\n".join(file_sections)
-        if non_file_extras:
-            user_input += f"\n\nAdditional arguments: {non_file_extras}"
-
         conversation: list[dict[str, Any]] = []
         if self._skill.system_prompt:
             conversation.append(
                 {
                     "role": Role.SYSTEM.value,
-                    "content": prepend_preamble(self._skill.system_prompt),
+                    "content": prepend_preamble(
+                        self._skill.system_prompt,
+                        has_ask_user="ask_user" in self._skill.tools,
+                    ),
                 }
             )
         conversation.append({"role": Role.USER.value, "content": user_input})

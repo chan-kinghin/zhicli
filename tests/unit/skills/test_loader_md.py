@@ -306,3 +306,31 @@ class TestDefaultsAndOptionalFields:
         )
         config = load_skill_md(skill_dir / "SKILL.md")
         assert config.tools == ["file_read", "shell", "ask_user"]
+
+
+class TestVersionFieldMd:
+    def test_version_field_parsed(self, tmp_path: Path) -> None:
+        skill_dir = _write_skill_md(
+            tmp_path, "ver-test", extra_frontmatter="version: '2.0.1'\n"
+        )
+        config = load_skill_md(skill_dir / "SKILL.md")
+        assert config.version == "2.0.1"
+
+    def test_version_default(self, tmp_path: Path) -> None:
+        skill_dir = _write_skill_md(tmp_path, "no-ver")
+        config = load_skill_md(skill_dir / "SKILL.md")
+        assert config.version == ""
+
+
+class TestDisableModelInvocationMd:
+    def test_disable_model_invocation_parsed(self, tmp_path: Path) -> None:
+        skill_dir = _write_skill_md(
+            tmp_path, "dmi-test", extra_frontmatter="disable-model-invocation: true\n"
+        )
+        config = load_skill_md(skill_dir / "SKILL.md")
+        assert config.disable_model_invocation is True
+
+    def test_disable_model_invocation_default(self, tmp_path: Path) -> None:
+        skill_dir = _write_skill_md(tmp_path, "dmi-default")
+        config = load_skill_md(skill_dir / "SKILL.md")
+        assert config.disable_model_invocation is False

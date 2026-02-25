@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 
 from zhi.i18n import (
+    ASK_USER_PREAMBLE,
     CHAT_SYSTEM_PROMPT,
     LANGUAGE_PREAMBLE,
     get_language,
@@ -26,6 +27,23 @@ class TestLanguagePreamble:
         assert result.startswith(LANGUAGE_PREAMBLE)
         assert "You are a summarizer." in result
         assert "\n\n" in result
+
+    def test_prepend_preamble_without_ask_user(self) -> None:
+        result = prepend_preamble("Skill prompt.", has_ask_user=False)
+        assert ASK_USER_PREAMBLE not in result
+        assert LANGUAGE_PREAMBLE in result
+        assert "Skill prompt." in result
+
+    def test_prepend_preamble_with_ask_user(self) -> None:
+        result = prepend_preamble("Skill prompt.", has_ask_user=True)
+        assert LANGUAGE_PREAMBLE in result
+        assert ASK_USER_PREAMBLE in result
+        assert "Skill prompt." in result
+        # Order: language preamble first, then ask_user, then skill prompt
+        lang_idx = result.index(LANGUAGE_PREAMBLE)
+        ask_idx = result.index(ASK_USER_PREAMBLE)
+        skill_idx = result.index("Skill prompt.")
+        assert lang_idx < ask_idx < skill_idx
 
 
 class TestLanguageResolution:
@@ -153,6 +171,21 @@ class TestPreambleContent:
 
     def test_preamble_forbids_mixing(self) -> None:
         assert "Never mix" in LANGUAGE_PREAMBLE
+
+
+class TestAskUserPreamble:
+    def test_preamble_exists(self) -> None:
+        assert ASK_USER_PREAMBLE
+        assert len(ASK_USER_PREAMBLE) > 0
+
+    def test_preamble_mentions_ask_user(self) -> None:
+        assert "ask_user" in ASK_USER_PREAMBLE
+
+    def test_preamble_mentions_ambiguous(self) -> None:
+        assert "ambiguous" in ASK_USER_PREAMBLE
+
+    def test_preamble_forbids_guessing(self) -> None:
+        assert "Never guess" in ASK_USER_PREAMBLE
 
 
 class TestWindowsLocaleDetection:

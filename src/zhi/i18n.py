@@ -27,6 +27,20 @@ LANGUAGE_PREAMBLE = (
 )
 
 # ---------------------------------------------------------------------------
+# Clarification preamble — injected into skill system prompts when the skill
+# has access to ask_user, so the inner model knows to clarify ambiguity
+# instead of guessing.
+# ---------------------------------------------------------------------------
+
+ASK_USER_PREAMBLE = (
+    "IMPORTANT: You have an ask_user tool. When a request is ambiguous, "
+    "has multiple valid interpretations, or requires choosing between options "
+    "(e.g. which column to use, which price tier, which date range, which "
+    "format), you MUST call ask_user to clarify BEFORE doing any work. "
+    "Never guess or assume — always ask."
+)
+
+# ---------------------------------------------------------------------------
 # Chat system prompt — injected into the main chat agent so GLM-5 knows
 # when to ask for clarification and when to create reusable skills.
 # ---------------------------------------------------------------------------
@@ -117,9 +131,13 @@ def resolve_language() -> str:
     return "en"
 
 
-def prepend_preamble(system_prompt: str) -> str:
-    """Prepend the language preamble to a skill system prompt."""
-    return f"{LANGUAGE_PREAMBLE}\n\n{system_prompt}"
+def prepend_preamble(system_prompt: str, *, has_ask_user: bool = False) -> str:
+    """Prepend the language preamble (and optionally ask_user preamble) to a skill system prompt."""
+    parts = [LANGUAGE_PREAMBLE]
+    if has_ask_user:
+        parts.append(ASK_USER_PREAMBLE)
+    parts.append(system_prompt)
+    return "\n\n".join(parts)
 
 
 # ---------------------------------------------------------------------------

@@ -115,6 +115,18 @@ class SkillCreateTool(BaseTool):
                     },
                 },
             },
+            "version": {
+                "type": "string",
+                "description": "Version string for the skill (e.g. '1.0.0').",
+            },
+            "disable_model_invocation": {
+                "type": "boolean",
+                "description": (
+                    "If true, the skill returns its instructions to the parent "
+                    "agent instead of spawning a nested agent loop. Useful for "
+                    "procedural recipe-style skills."
+                ),
+            },
         },
         "required": ["name", "description", "system_prompt", "tools"],
     }
@@ -142,6 +154,8 @@ class SkillCreateTool(BaseTool):
         references: list[str] = kwargs.get("references") or []
         input_args: list[dict[str, Any]] = kwargs.get("input_args") or []
         output: dict[str, Any] | None = kwargs.get("output")
+        version: str = kwargs.get("version", "")
+        disable_model_invocation: bool = kwargs.get("disable_model_invocation", False)
 
         # ── Validate common fields ──────────────────────────────────
         error = self._validate(skill_name, description, system_prompt, tools)
@@ -185,6 +199,8 @@ class SkillCreateTool(BaseTool):
                 input_args,
                 output,
                 md_dir,
+                version=version,
+                disable_model_invocation=disable_model_invocation,
             )
         return self._create_yaml(
             skill_name,
@@ -195,6 +211,8 @@ class SkillCreateTool(BaseTool):
             max_turns,
             output,
             yaml_file,
+            version=version,
+            disable_model_invocation=disable_model_invocation,
         )
 
     # ── Private helpers ─────────────────────────────────────────────
@@ -257,6 +275,9 @@ class SkillCreateTool(BaseTool):
         input_args: list[dict[str, Any]],
         output: dict[str, Any] | None,
         skill_dir: Path,
+        *,
+        version: str = "",
+        disable_model_invocation: bool = False,
     ) -> str:
         """Create a SKILL.md directory with frontmatter + body + references."""
         # Build frontmatter
@@ -265,10 +286,14 @@ class SkillCreateTool(BaseTool):
             "description": description,
             "tools": tools,
         }
+        if version:
+            frontmatter["version"] = version
         if model != self._default_model:
             frontmatter["model"] = model
         if max_turns != 15:
             frontmatter["max_turns"] = max_turns
+        if disable_model_invocation:
+            frontmatter["disable-model-invocation"] = True
         if input_args:
             frontmatter["input"] = {"args": input_args}
         if output:
@@ -344,6 +369,9 @@ class SkillCreateTool(BaseTool):
         max_turns: int,
         output: dict[str, Any] | None,
         skill_file: Path,
+        *,
+        version: str = "",
+        disable_model_invocation: bool = False,
     ) -> str:
         """Create a flat YAML skill file (legacy format)."""
         skill_data: dict[str, Any] = {
@@ -354,6 +382,10 @@ class SkillCreateTool(BaseTool):
             "tools": tools,
             "max_turns": max_turns,
         }
+        if version:
+            skill_data["version"] = version
+        if disable_model_invocation:
+            skill_data["disable-model-invocation"] = True
         if output:
             output_clean = {k: v for k, v in output.items() if v}
             if output_clean:

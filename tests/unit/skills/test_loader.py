@@ -326,3 +326,70 @@ class TestSkillNamePattern:
 
     def test_pattern_rejects_dot(self) -> None:
         assert not SKILL_NAME_PATTERN.match("a.b")
+
+
+class TestVersionField:
+    def test_version_field_parsed(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "versioned.yaml"
+        skill_yaml.write_text(
+            "name: versioned\n"
+            "description: A versioned skill\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+            "version: '1.2.0'\n"
+        )
+        config = load_skill(skill_yaml)
+        assert config.version == "1.2.0"
+
+    def test_version_default_empty(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "no_version.yaml"
+        skill_yaml.write_text(
+            "name: noversion\n"
+            "description: No version\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+        )
+        config = load_skill(skill_yaml)
+        assert config.version == ""
+
+
+class TestDisableModelInvocationField:
+    def test_disable_model_invocation_true(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "disabled.yaml"
+        skill_yaml.write_text(
+            "name: disabled\n"
+            "description: Disabled model\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+            "disable-model-invocation: true\n"
+        )
+        config = load_skill(skill_yaml)
+        assert config.disable_model_invocation is True
+
+    def test_disable_model_invocation_default(self, tmp_path: Path) -> None:
+        skill_yaml = tmp_path / "default.yaml"
+        skill_yaml.write_text(
+            "name: default\n"
+            "description: Default model invocation\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+        )
+        config = load_skill(skill_yaml)
+        assert config.disable_model_invocation is False
+
+    def test_disable_model_invocation_in_known_fields(self, tmp_path: Path) -> None:
+        """disable-model-invocation should not trigger unknown field warning."""
+        skill_yaml = tmp_path / "known.yaml"
+        skill_yaml.write_text(
+            "name: known\n"
+            "description: Known field\n"
+            "system_prompt: test\n"
+            "tools:\n  - file_read\n"
+            "disable-model-invocation: true\n"
+        )
+        import warnings
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error")
+            config = load_skill(skill_yaml)
+        assert config.disable_model_invocation is True

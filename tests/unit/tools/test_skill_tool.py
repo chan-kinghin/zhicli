@@ -23,15 +23,18 @@ def _make_skill(
     model: str = "glm-4-flash",
     max_turns: int = 5,
     input_args: list[dict[str, Any]] | None = None,
+    system_prompt: str = "You are a summarizer.",
+    disable_model_invocation: bool = False,
 ) -> SkillConfig:
     return SkillConfig(
         name=name,
         description=description,
-        system_prompt="You are a summarizer.",
+        system_prompt=system_prompt,
         tools=tools or ["file_read"],
         model=model,
         max_turns=max_turns,
         input_args=input_args or [],
+        disable_model_invocation=disable_model_invocation,
     )
 
 
@@ -710,3 +713,118 @@ class TestReplSkillCommands:
             result = session._handle_skill("list")
 
         assert "No skills installed" in result
+
+
+# ── Disable Model Invocation ─────────────────────────────────────────
+
+
+class TestSkillToolDisableModelInvocation:
+    def test_returns_instructions_directly(self) -> None:
+        """With disable_model_invocation, no agent_run is called."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(
+            system_prompt="Step 1: Do this.\nStep 2: Do that.",
+            disable_model_invocation=True,
+        )
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        with patch("zhi.tools.skill_tool.agent_run") as mock_run:
+            result = tool.execute(input="Run the steps")
+
+        mock_run.assert_not_called()
+        assert "Step 1: Do this." in result
+        assert "Run the steps" in result
+
+    def test_includes_file_content(self) -> None:
+        """File args are still pre-read and included in the returned output."""
+        import tempfile
+
+        with tempfile.NamedTemporaryFile(
+            suffix=".txt", mode="w", delete=False, encoding="utf-8"
+        ) as f:
+            f.write("File contents here")
+            fpath = f.name
+
+        try:
+            client = _make_client()
+            registry = _make_registry_with_fake()
+            skill = _make_skill(
+                system_prompt="Instructions",
+                disable_model_invocation=True,
+                input_args=[{"name": "file", "type": "file", "required": True}],
+            )
+            tool = SkillTool(skill=skill, client=client, registry=registry)
+
+            result = tool.execute(input="Process this", file=fpath)
+            assert "File contents here" in result
+            assert "Instructions" in result
+        finally:
+            import os
+
+            os.unlink(fpath)
+
+    def test_validates_required_files(self) -> None:
+        """Fail fast on empty required file args still works."""
+        client = _make_client()
+        registry = _make_registry_with_fake()
+        skill = _make_skill(
+            disable_model_invocation=True,
+            input_args=[{"name": "file", "type": "file", "required": True}],
+        )
+        tool = SkillTool(skill=skill, client=client, registry=registry)
+
+        result = tool.execute(input="test", file="")
+        assert "Error" in result
+        assert "'file'" in result
+
+    def test_cycle_detection_still_applies(self) -> None:
+        """Recursion guard fires even with disable_model_invocation."""
+        skill = _make_skill(name="cycle", disable_model_invocation=True)
+        tool = SkillTool(
+            skill=skill,
+            client=_make_client(),
+            registry=ToolRegistry(),
+            call_stack=frozenset({"cycle"}),
+        )
+        result = tool.execute(input="test")
+        assert "Recursion blocked" in result
+
+    def test_depth_limit_still_applies(self) -> None:
+        """Depth guard fires even with disable_model_invocation."""
+        skill = _make_skill(name="deep", disable_model_invocation=True)
+        tool = SkillTool(
+            skill=skill,
+            client=_make_client(),
+            registry=ToolRegistry(),
+            depth=_MAX_DEPTH,
+        )
+        result = tool.execute(input="test")
+        assert "max depth" in result.lower()
+
+    def test_combines_prompt_and_input(self) -> None:
+        """Both system_prompt and user input are combined in the output."""
+        skill = _make_skill(
+            system_prompt="System instructions here",
+            disable_model_invocation=True,
+        )
+        tool = SkillTool(
+            skill=skill, client=_make_client(), registry=ToolRegistry()
+        )
+        result = tool.execute(input="User query here")
+        assert "System instructions here" in result
+        assert "User query here" in result
+        # Separated by double newline
+        assert "System instructions here\n\nUser query here" in result
+
+    def test_empty_prompt_returns_input_only(self) -> None:
+        """When system_prompt is empty, only user input is returned."""
+        skill = _make_skill(
+            system_prompt="",
+            disable_model_invocation=True,
+        )
+        tool = SkillTool(
+            skill=skill, client=_make_client(), registry=ToolRegistry()
+        )
+        result = tool.execute(input="Just the input")
+        assert result == "Just the input"
